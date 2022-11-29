@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.TreeMap;
 
 public class Indexer {
 
@@ -19,6 +20,8 @@ public class Indexer {
     protected static final Runtime runtime = Runtime.getRuntime();
     // useful for giving different names to partial files
     protected int currentBlock = 0;
+    // Value needs to be changed
+    protected TreeMap<String, String> lexicon;
 
     public Indexer() {
     }
