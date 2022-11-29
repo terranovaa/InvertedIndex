@@ -10,7 +10,7 @@ import java.util.Iterator;
 
 public class Main {
 
-    private static final String collectionPath = "./collection.tar";
+    private static final String collectionPath = "./collection/collection.tar";
 
     public static void main(String[] args) throws IOException {
         Indexer indexer = new Indexer();
