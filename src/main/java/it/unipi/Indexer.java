@@ -23,16 +23,15 @@ public class Indexer {
     protected TreeMap<String, LexiconTerm> lexicon = new TreeMap<>();
 
     protected SnowballStemmer stemmer = new SnowballStemmer(SnowballStemmer.ALGORITHM.ENGLISH);
-    protected List<String> stopwords;
+    protected HashSet<String> stopwords = new HashSet<>();
 
     public Indexer(String stopwordsPath) throws IOException{
-        stopwords = Files.readAllLines(Paths.get(stopwordsPath));
+        stopwords.addAll(Files.readAllLines(Paths.get(stopwordsPath)));
     }
 
     public void indexCollection(String collectionPath) throws IOException {
         File file = new File(collectionPath);
-        GzipCompressorInputStream gzInputStream = new GzipCompressorInputStream(new FileInputStream(file));
-        final TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(gzInputStream);
+        final TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(file)));
         TarArchiveEntry tarArchiveEntry = tarArchiveInputStream.getNextTarEntry();
         BufferedReader bufferedReader;
         if (tarArchiveEntry != null) {
@@ -41,6 +40,9 @@ public class Indexer {
             String line;
             //TODO check memory available
             while ((line = bufferedReader.readLine()) != null) {
+
+                long freeMemory = runtime.freeMemory();
+                System.out.println(freeMemory);
                 String doc_no = line.substring(0, line.indexOf("\t"));
                 String document = line.substring(line.indexOf("\t") + 1);
 
@@ -52,6 +54,7 @@ public class Indexer {
                         //if the token is a stopword don't consider it
                         continue;
                     }
+
                     token = (String)stemmer.stem(token);
 
                     //check if the token is already in the lexicon, if not create new entry
@@ -65,14 +68,14 @@ public class Indexer {
                 }
                 //move on to the next document
                 currentId++;
-                if(currentId > 5){
+                if(currentId > 5000){
                     break;
                 }
             }
 
             //DEBUG
             for(LexiconTerm lexiconEntry: lexicon.values()){
-                lexiconEntry.printInfo();
+                //lexiconEntry.printInfo();
             }
         }
     }
