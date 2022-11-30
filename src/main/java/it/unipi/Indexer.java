@@ -79,7 +79,7 @@ public class Indexer {
                 }
                 //move on to the next document
                 currentId++;
-                if(currentId > 5000){
+                if(currentId > 5){
                     break;
                 }
             }
