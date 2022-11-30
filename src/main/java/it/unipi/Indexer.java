@@ -1,5 +1,6 @@
 package it.unipi;
 
+import opennlp.tools.stemmer.snowball.SnowballStemmer;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
@@ -21,6 +22,7 @@ public class Indexer {
     // Value needs to be changed
     protected TreeMap<String, LexiconTerm> lexicon = new TreeMap<>();
 
+    protected SnowballStemmer stemmer = new SnowballStemmer(SnowballStemmer.ALGORITHM.ENGLISH);
     protected List<String> stopwords;
 
     public Indexer(String stopwordsPath) throws IOException{
@@ -37,31 +39,38 @@ public class Indexer {
             // UTF8 or ASCII?
             bufferedReader = new BufferedReader(new InputStreamReader(tarArchiveInputStream, StandardCharsets.UTF_8));
             String line;
-            //TODO check if memory available
+            //TODO check memory available
             while ((line = bufferedReader.readLine()) != null) {
                 String doc_no = line.substring(0, line.indexOf("\t"));
                 String document = line.substring(line.indexOf("\t") + 1);
+
                 String[] tokens = tokenize(document);
                 for (String token: tokens){
+
+                    //stopword removal & stemming
                     if(stopwords.contains(token)){
                         //if the token is a stopword don't consider it
                         continue;
                     }
+                    token = (String)stemmer.stem(token);
 
-                    //check if the token is already in the lexicon
+                    //check if the token is already in the lexicon, if not create new entry
                     LexiconTerm lexiconEntry;
                     if ((lexiconEntry = lexicon.get(token)) == null){
                         lexiconEntry = new LexiconTerm(token);
                         lexicon.put(token, lexiconEntry);
                     }
+
                     lexiconEntry.addToPostingList(currentId);
                 }
                 //move on to the next document
                 currentId++;
-                if(currentId > 2000){
+                if(currentId > 5){
                     break;
                 }
             }
+
+            //DEBUG
             for(LexiconTerm lexiconEntry: lexicon.values()){
                 lexiconEntry.printInfo();
             }
@@ -69,7 +78,6 @@ public class Indexer {
     }
 
     private String[] tokenize(String document){
-        //TODO stemming
         document = document.toLowerCase();
         //remove punctuation and strange characters
         //TODO (to check whether it removes too many things or not)

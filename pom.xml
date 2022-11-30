@@ -20,5 +20,10 @@
             <artifactId>commons-compress</artifactId>
             <version>1.22</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.opennlp</groupId>
+            <artifactId>opennlp-tools</artifactId>
+            <version>2.1.0</version>
+        </dependency>
     </dependencies>
 </project>
