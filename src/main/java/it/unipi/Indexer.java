@@ -6,6 +6,9 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
 import java.io.*;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
 import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -26,6 +29,8 @@ public class Indexer {
     // TODO: same here?
     protected HashSet<String> stopwords = new HashSet<>();
 
+    MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
+
     public Indexer(String stopwordsPath) throws IOException{
         stopwords.addAll(Files.readAllLines(Paths.get(stopwordsPath)));
     }
@@ -41,24 +46,18 @@ public class Indexer {
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 // check if memory available
-                if(!freeMemory()) {
-                    // write to disk
-                    // TODO: we avoid sorting since treeMapp do it already, right?
-                    writeToDisk("file"+ currentBlock);
+                if(memoryFull()) {
+                    //writeToDisk("file" + currentBlock); // TODO write postings and lexicon to disk
                     currentBlock++;
-                    // lose references
-                    lexicon = null;
+                    lexicon.clear();
+
                     // use a while loop since we don't know when the garbage collector will come in action
-                    while(!freeMemory()) {
-                        // hint that suggests the garbage collector to come in action
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
+                    while(memoryFull()) {
                         System.gc();
                     }
                 }
+                if (currentId % 100000 == 0)
+                    System.out.println(currentId);
                 String doc_no = line.substring(0, line.indexOf("\t"));
                 String document = line.substring(line.indexOf("\t") + 1);
                 String[] tokens = tokenize(document);
@@ -79,58 +78,40 @@ public class Indexer {
                 }
                 //move on to the next document
                 currentId++;
-                if(currentId > 5){
+                if(currentId > 5000000){
                     break;
                 }
-            }
-
-            //DEBUG
-            for(LexiconTerm lexiconEntry: lexicon.values()){
-                //lexiconEntry.printInfo();
             }
         }
         mergeBlocks();
     }
 
-    private boolean freeMemory() {
-        // used this solution instead of getRuntime().freeMemory() since of the discrepancy between the memory that the operating system
-        // provides the Java Virtual Machine and  the total amount of bytes comprising the chunks of blocks
-        // of memory actually being used by the Java Virtual Machine itself.
-        // Considering that memory given to Java applications is managed in blocks by the Java Virtual Machine,
-        // the amount of free memory available to the Java Virtual Machine may not exactly match the memory
-        // available for a Java application.
-        long allocatedMemory =
-                (Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory());
-        long freeMemory = Runtime.getRuntime().maxMemory() - allocatedMemory;
-        // the amount is provided in bytes
-        System.out.println(freeMemory / (1024*1024));
-        if (freeMemory <= MEMORY_THRESHOLD_PERCENTAGE*Runtime.getRuntime().maxMemory())
-            return false;
-        else return true;
+    private boolean memoryFull() {
+
+        MemoryUsage memoryUsage = memoryMXBean.getHeapMemoryUsage();
+        long usedHeap = memoryUsage.getUsed();
+        long maxHeap = memoryUsage.getMax();
+        double heapThreshold = MEMORY_THRESHOLD_PERCENTAGE * maxHeap;
+        return usedHeap >= heapThreshold;
     }
 
     private String[] tokenize(String document){
         document = document.toLowerCase();
         //remove punctuation and strange characters
-        //TODO: Check first option
         document = document.replaceAll("[^\\w\\s]", " ");
         // handle lower case in order to be the same thing
-        // TODO: Check second option, remove everything which is not a letter (maybe maintain also numbers?)
-        document = document.replaceAll("[^a-zA-Z ]", "").toLowerCase();
         //split in tokens
         // TODO: or \\s+
         return document.split("\\s");
     }
 
     public void writeToDisk(String filename){
-        // TODO: more complex logic? write lexicon and posting lists in different files?
+        // TODO: Franco this function fucking sucks what the hell
         ObjectOutputStream objStream;
         ByteArrayOutputStream byteStream;
         try {
             byteStream = new ByteArrayOutputStream();
             objStream = new ObjectOutputStream(byteStream);;
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -147,8 +128,6 @@ public class Indexer {
         try (FileOutputStream fileStream = new FileOutputStream("./resources/"+filename)) {
             fileStream.write(bytes);
             // no fos.closeclose since the instance is inside the try and this will automatically close the FileOutputStream
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -163,7 +142,7 @@ public class Indexer {
     // TODO: Consider this possible solution to force the garbage collector to came into action instead of just giving the hint
     public static void gc() {
         Object obj = new Object();
-        WeakReference ref = new WeakReference<Object>(obj);
+        WeakReference<Object> ref = new WeakReference<>(obj);
         obj = null;
         while(ref.get() != null) {
             System.gc();
