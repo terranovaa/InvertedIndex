@@ -161,14 +161,4 @@ public class Indexer {
         // Use the blocked sort-based indexing merging algorithm
         // skip pointers if the sum of the doc frequencies is > 1024
     }
-
-    // TODO: Consider this possible solution to force the garbage collector to came into action instead of just giving the hint
-    public static void gc() {
-        Object obj = new Object();
-        WeakReference<Object> ref = new WeakReference<>(obj);
-        obj = null;
-        while(ref.get() != null) {
-            System.gc();
-        }
-    }
 }
