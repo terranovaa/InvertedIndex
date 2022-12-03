@@ -31,6 +31,11 @@ public class Indexer {
     // TODO: same here?
     protected HashSet<String> stopwords = new HashSet<>();
 
+    protected final String postingsDocIdsFile = "./resources/inverted_index/postings_doc_ids_" + currentBlock + ".dat";
+    protected final String postingsFrequenciesFile = "./resources/inverted_index/postings_frequencies_" + currentBlock + ".dat";
+    protected final String lexiconFile = "./resources/lexicon/lexicon_" + currentBlock + ".dat";
+
+
     MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
 
     public Indexer(String stopwordsPath) throws IOException{
@@ -51,8 +56,9 @@ public class Indexer {
                 if(memoryFull()) {
                     writeToDisk();
                     currentBlock++;
-                    lexicon.clear();
 
+                    mergeBlocks();
+                    lexicon.clear();
                     // use a while loop since we don't know when the garbage collector will come in action
                     while(memoryFull()) {
                         System.gc();
@@ -109,10 +115,6 @@ public class Indexer {
 
     public void writeToDisk(){
 
-        String postingsDocIdsFile = "./resources/inverted_index/postings_doc_ids_" + currentBlock + ".dat";
-        String postingsFrequenciesFile = "./resources/inverted_index/postings_frequencies_" + currentBlock + ".dat";
-        String lexiconFile = "./resources/lexicon/lexicon_" + currentBlock + ".dat";
-
         int docIDsFileOffset = 0;
         int frequenciesFileOffset = 0;
 
@@ -121,8 +123,9 @@ public class Indexer {
         try (
                 OutputStream postingsDocIdsStream = new BufferedOutputStream(new FileOutputStream(postingsDocIdsFile));
                 OutputStream postingsFrequenciesStream = new BufferedOutputStream(new FileOutputStream(postingsFrequenciesFile));
-                OutputStream lexiconStream = new BufferedOutputStream(new FileOutputStream(lexiconFile));
+                OutputStream lexiconStream = new BufferedOutputStream(new FileOutputStream(lexiconFile))
                 ) {
+
             for (Map.Entry<String, LexiconTerm> entry : lexicon.entrySet()) {
                 LexiconTerm lexiconTerm = entry.getValue();
                 lexiconTerm.setDocIDsOffset(docIDsFileOffset);
@@ -138,9 +141,8 @@ public class Indexer {
                 frequenciesFileOffset += encodedFrequencies.length;
                 postingsFrequenciesStream.write(encodedFrequencies);
                 // lexicon
-                // TODO: fixed entry size for binary search? 20 bytes?
-                String lexiconEntry = lexiconTerm.getTerm() + "," + lexiconTerm.getDocumentFrequency() + "," + lexiconTerm.getCollectionFrequency() + "," + lexiconTerm.getDocIDsOffset() + "," + lexiconTerm.getFrequenciesOffset() + "\n";
-                lexiconStream.write(lexiconEntry.getBytes());
+                byte[] lexiconEntry = serializeLexiconEntry(lexiconTerm);
+                lexiconStream.write(lexiconEntry);
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -157,8 +159,70 @@ public class Indexer {
     // TODO
     public void mergeBlocks(){
         // TODO check if writeToDisk actually works
+        /* check for lexicon write to disk
+        try(
+            InputStream lexiconStream = new BufferedInputStream(new FileInputStream(lexiconFile));
+            )
+        {
+            byte[] buffer = lexiconStream.readNBytes(136);
+            LexiconTerm lexiconTerm = deserializeLexiconEntry(buffer);
+            lexiconTerm.printInfo();
+            buffer = lexiconStream.readNBytes(136);
+            lexiconTerm = deserializeLexiconEntry(buffer);
+            lexiconTerm.printInfo();
+            buffer = lexiconStream.readNBytes(136);
+            lexiconTerm = deserializeLexiconEntry(buffer);
+            lexiconTerm.printInfo();
+        } catch (IOException ioe){
+            ioe.printStackTrace();
+        }
+        */
         // exploit currentBlock to determine the number and names of files we need to merge
         // Use the blocked sort-based indexing merging algorithm
         // skip pointers if the sum of the doc frequencies is > 1024
+    }
+
+
+    //encode lexiconTerm object as an array of bytes with fixed dimension
+    private byte[] serializeLexiconEntry(LexiconTerm lexiconTerm) {
+        // TODO: how many characters per word? 20?
+        byte[] lexiconEntry = new byte[136];
+        //variable number of bytes
+        byte[] entryTerm = lexiconTerm.getTerm().getBytes(StandardCharsets.UTF_8);
+        //fixed number of bytes, 4 for each integer
+        byte[] entryDf = Utils.intToByteArray(lexiconTerm.getDocumentFrequency());
+        byte[] entryCf = Utils.intToByteArray(lexiconTerm.getCollectionFrequency());
+        byte[] entryDocIDOffset = Utils.intToByteArray(lexiconTerm.getDocIDsOffset());
+        byte[] entryFrequenciesOffset = Utils.intToByteArray(lexiconTerm.getFrequenciesOffset());
+        //fill the first part of the buffer with the utf-8 representation of the term, leave the rest to 0
+        System.arraycopy(entryTerm, 0, lexiconEntry, 0, entryTerm.length);
+        //fill the last part of the buffer with statistics and offsets
+        System.arraycopy(entryDf, 0, lexiconEntry, 120, 4);
+        System.arraycopy(entryCf, 0, lexiconEntry, 124, 4);
+        System.arraycopy(entryDocIDOffset, 0, lexiconEntry, 128, 4);
+        System.arraycopy(entryFrequenciesOffset, 0, lexiconEntry, 132, 4);
+        return lexiconEntry;
+    }
+
+    //decode a disk-based array of bytes representing a lexicon entry in a LexiconTerm object
+    private LexiconTerm deserializeLexiconEntry(byte[] buffer) {
+        //to decode the term, detect the position of the first byte equal 0
+        int endOfString = 0;
+        while(buffer[endOfString] != 0){
+            endOfString++;
+        }
+        //parse only the first part of the buffer until the first byte equal 0
+        String term = new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
+        //decode the rest of the buffer
+        int documentFrequency = Utils.byteArrayToInt(buffer, 120);
+        int collectionFrequency = Utils.byteArrayToInt(buffer, 124);
+        int docIdOffset = Utils.byteArrayToInt(buffer, 128);
+        int frequenciesOffset = Utils.byteArrayToInt(buffer, 132);
+        LexiconTerm lexiconTerm = new LexiconTerm(term);
+        lexiconTerm.setDocumentFrequency(documentFrequency);
+        lexiconTerm.setCollectionFrequency(collectionFrequency);
+        lexiconTerm.setDocIDsOffset(docIdOffset);
+        lexiconTerm.setFrequenciesOffset(frequenciesOffset);
+        return lexiconTerm;
     }
 }

@@ -52,4 +52,20 @@ public final class Utils {
         }
         return bytesPrimitive;
     }
+
+    //given an integer return the byte representation
+    public static byte[] intToByteArray(int value) {
+        return new byte[] {
+                (byte)(value >>> 24),
+                (byte)(value >>> 16),
+                (byte)(value >>> 8),
+                (byte)value};
+    }
+
+    public static int byteArrayToInt(byte[] value, int startIndex) {
+        return ((value[startIndex] & 0xFF) << 24) |
+                ((value[startIndex + 1] & 0xFF) << 16) |
+                ((value[startIndex + 2] & 0xFF) << 8 ) |
+                ((value[startIndex + 3] & 0xFF));
+    }
 }

@@ -93,7 +93,9 @@ public class LexiconTerm {
     public void printInfo(){
         System.out.println("term: " + term +
                 " | df: " + documentFrequency +
-                " | cf: " + collectionFrequency);
+                " | cf: " + collectionFrequency +
+                " | dOffset: " + docIDsOffset +
+                " | fOffset: " + frequenciesOffset);
         for(Posting posting: postingList){
             System.out.print("[" + "docID: " + posting.getDocID() + " | freq: " + posting.getFrequency() + "] ");
         }
