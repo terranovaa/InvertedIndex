@@ -16,6 +16,8 @@ public class LexiconTerm {
 
     private int docIDsOffset;
     private int frequenciesOffset;
+    private int docIDsSize;
+    private int frequenciesSize;
 
     public int getDocIDsOffset() {
         return docIDsOffset;
@@ -31,6 +33,22 @@ public class LexiconTerm {
 
     public void setFrequenciesOffset(int frequenciesOffset) {
         this.frequenciesOffset = frequenciesOffset;
+    }
+
+    public int getDocIDsSize() {
+        return docIDsSize;
+    }
+
+    public void setDocIDsSize(int docIDsSize) {
+        this.docIDsSize = docIDsSize;
+    }
+
+    public int getFrequenciesSize() {
+        return frequenciesSize;
+    }
+
+    public void setFrequenciesSize(int frequenciesSize) {
+        this.frequenciesSize = frequenciesSize;
     }
 
     public String getTerm() {
@@ -89,13 +107,19 @@ public class LexiconTerm {
         }
     }
 
+    public void addPosting(int docID, int frequency){
+        postingList.add(new Posting(docID, frequency));
+    }
+
     //DEBUG
     public void printInfo(){
         System.out.println("term: " + term +
                 " | df: " + documentFrequency +
                 " | cf: " + collectionFrequency +
                 " | dOffset: " + docIDsOffset +
-                " | fOffset: " + frequenciesOffset);
+                " | fOffset: " + frequenciesOffset +
+                " | dSize: " + docIDsSize +
+                " | fSize: " + frequenciesSize);
         for(Posting posting: postingList){
             System.out.print("[" + "docID: " + posting.getDocID() + " | freq: " + posting.getFrequency() + "] ");
         }
