@@ -56,8 +56,6 @@ public class Indexer {
                 if(memoryFull()) {
                     writeToDisk();
                     currentBlock++;
-
-                    mergeBlocks();
                     lexicon.clear();
                     // use a while loop since we don't know when the garbage collector will come in action
                     while(memoryFull()) {
@@ -159,24 +157,18 @@ public class Indexer {
     // TODO
     public void mergeBlocks(){
         // TODO check if writeToDisk actually works
-        /* check for lexicon write to disk
         try(
-            InputStream lexiconStream = new BufferedInputStream(new FileInputStream(lexiconFile));
+            OutputStream postingsDocIdsStream = new BufferedOutputStream(new FileOutputStream(postingsDocIdsFile));
+            OutputStream postingsFrequenciesStream = new BufferedOutputStream(new FileOutputStream(postingsFrequenciesFile));
+            InputStream lexiconStream = new BufferedInputStream(new FileInputStream(lexiconFile))
             )
         {
             byte[] buffer = lexiconStream.readNBytes(136);
             LexiconTerm lexiconTerm = deserializeLexiconEntry(buffer);
             lexiconTerm.printInfo();
-            buffer = lexiconStream.readNBytes(136);
-            lexiconTerm = deserializeLexiconEntry(buffer);
-            lexiconTerm.printInfo();
-            buffer = lexiconStream.readNBytes(136);
-            lexiconTerm = deserializeLexiconEntry(buffer);
-            lexiconTerm.printInfo();
         } catch (IOException ioe){
             ioe.printStackTrace();
         }
-        */
         // exploit currentBlock to determine the number and names of files we need to merge
         // Use the blocked sort-based indexing merging algorithm
         // skip pointers if the sum of the doc frequencies is > 1024
