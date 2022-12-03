@@ -14,6 +14,57 @@ public class LexiconTerm {
     //useful for checking if a docid already belongs to the posting
     private int lastDocIDInserted;
 
+    private int docIDsOffset;
+    private int frequenciesOffset;
+
+    public int getDocIDsOffset() {
+        return docIDsOffset;
+    }
+
+    public void setDocIDsOffset(int docIDsOffset) {
+        this.docIDsOffset = docIDsOffset;
+    }
+
+    public int getFrequenciesOffset() {
+        return frequenciesOffset;
+    }
+
+    public void setFrequenciesOffset(int frequenciesOffset) {
+        this.frequenciesOffset = frequenciesOffset;
+    }
+
+    public String getTerm() {
+        return term;
+    }
+
+    public int getDocumentFrequency() {
+        return documentFrequency;
+    }
+
+    public void setDocumentFrequency(int documentFrequency) {
+        this.documentFrequency = documentFrequency;
+    }
+
+    public int getCollectionFrequency() {
+        return collectionFrequency;
+    }
+
+    public void setCollectionFrequency(int collectionFrequency) {
+        this.collectionFrequency = collectionFrequency;
+    }
+
+    public ArrayList<Posting> getPostingList() {
+        return postingList;
+    }
+
+    public int getLastDocIDInserted() {
+        return lastDocIDInserted;
+    }
+
+    public void setLastDocIDInserted(int lastDocIDInserted) {
+        this.lastDocIDInserted = lastDocIDInserted;
+    }
+
     public LexiconTerm(String term) {
         this.term = term;
         documentFrequency = 0;

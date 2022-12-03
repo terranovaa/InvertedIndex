@@ -1,6 +1,7 @@
 package it.unipi.utils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public final class Utils {
@@ -11,26 +12,26 @@ public final class Utils {
         while (true) {
             bytes.add(0, (byte) (number % 128));
             if (number < 128) break;
-            number = Math.floorDiv(n, 128);
+            number = Math.floorDiv(number, 128);
         }
         bytes.set(bytes.size() - 1, (byte) (bytes.get(bytes.size() - 1) | 0x80));
         return bytes;
     }
 
-     public static ArrayList<Byte> encode(List<Integer> numbers) {
+     public static byte[] encode(List<Integer> numbers) {
         ArrayList<Byte> byteStream = new ArrayList<>();
-        ArrayList<Byte> bytes;
+        List<Byte> bytes;
         for (Integer number: numbers) {
             bytes = encodeNumber(number);
             byteStream.addAll(bytes);
         }
-        return byteStream;
+        return byteArrayListToByteArray(byteStream);
     }
 
-    public static ArrayList<Integer> decode(List<Byte> byteStream) {
+    public static ArrayList<Integer> decode(byte[] byteStream) {
         ArrayList<Integer> numbers = new ArrayList<>();
         int n = 0;
-        for (Byte byteElem : byteStream) {
+        for (byte byteElem : byteStream) {
             int unsignedByte = byteElem & 0xff;
             if (unsignedByte < 128) {
                 n = 128 * n + unsignedByte;
@@ -41,5 +42,14 @@ public final class Utils {
             }
         }
         return numbers;
+    }
+
+    public static byte[] byteArrayListToByteArray(ArrayList<Byte> bytes) {
+        byte[] bytesPrimitive = new byte[bytes.size()];
+        int j = 0;
+        for (Byte b: bytes) {
+            bytesPrimitive[j++] = b;
+        }
+        return bytesPrimitive;
     }
 }
