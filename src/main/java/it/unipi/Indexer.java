@@ -36,13 +36,16 @@ public class Indexer {
     // used docno as index since if we use docid and then we flush in the disk we may have problems of collisions / re-usage of the same id
     protected TreeMap<String, Document> documentIndex = new TreeMap<>();
     // TODO: use language detector to determine language of a word and give the support to many languages?
-    protected SnowballStemmer stemmer = new SnowballStemmer(SnowballStemmer.ALGORITHM.ENGLISH);
+    protected SnowballStemmer stemmer;
     // TODO: same here?
     protected HashSet<String> stopwords = new HashSet<>();
     MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
 
-    public Indexer(String stopwordsPath) throws IOException{
-        stopwords.addAll(Files.readAllLines(Paths.get(stopwordsPath)));
+    public Indexer(boolean stopwordsON, String stopwordsPath, boolean stemmingON) throws IOException{
+        if(stopwordsON)
+            stopwords.addAll(Files.readAllLines(Paths.get(stopwordsPath)));
+        if(stemmingON)
+            stemmer = new SnowballStemmer(SnowballStemmer.ALGORITHM.ENGLISH);
     }
 
     public void indexCollection(String collectionPath) throws IOException {
@@ -82,11 +85,12 @@ public class Indexer {
                 String[] tokens = tokenize(document);
                 for (String token: tokens){
                     //stopword removal & stemming
-                    if(stopwords.contains(token)){
+                    if(stopwords.size() != 0 && stopwords.contains(token)){
                         //if the token is a stopword don't consider it
                         continue;
                     }
-                    token = (String) stemmer.stem(token);
+                    if(stemmer != null)
+                        token = (String) stemmer.stem(token);
                     //check if the token is already in the lexicon, if not create new entry
                     LexiconTerm lexiconEntry;
                     if ((lexiconEntry = lexicon.get(token)) == null){
