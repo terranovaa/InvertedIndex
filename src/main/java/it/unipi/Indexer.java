@@ -259,7 +259,9 @@ public class Indexer {
             }
 
             lexicon.put(referenceLexiconTerm.getTerm(), referenceLexiconTerm);
-            //mergeDocumentIndexes(numberOfBlocks);
+
+            // TODO: uncomment when finished
+            //mergeDocumentIndexes();
 
             currentBlock = 100;
             writeToDisk();
@@ -269,37 +271,23 @@ public class Indexer {
         //TODO skip pointers if the sum of the doc frequencies is > 1024
     }
 
-    // TODO: or is it enough to merge files?
-    private void mergeDocumentIndexes(int numberOfBlocks) throws IOException {
+    private void mergeDocumentIndexes() throws IOException {
         int nextBlock=0;
-        ArrayList<InputStream> documentIndexStreams = new ArrayList<>();
+        int numberOfBlocks=currentBlock+1;
+        ArrayList<InputStream> documentInputIndexStreams = new ArrayList<>();
+        String documentIndexFile = "./resources/documentIndex/documentIndex.dat";
         while(nextBlock < numberOfBlocks){
-            documentIndexStreams.add(new BufferedInputStream(new FileInputStream("./resources/documentIndex/documentIndex_" + nextBlock + ".dat")));
+            documentInputIndexStreams.add(new BufferedInputStream(new FileInputStream("./resources/documentIndex/documentIndex_" + nextBlock + ".dat")));
             nextBlock++;
         }
-
-        //cache in memory of the first terms in the document index of each block
-        byte[] buffer;
-        byte[] nextDocumentIndexEntry;
-        Document document;
-
-        // global variable so that it can be used by writeToDisk
-        documentIndex = new TreeMap<>();
-        int pointer = 0;
-        for(int i=0; i < numberOfBlocks; i++){
-            //read from file
-            buffer = documentIndexStreams.get(i).readNBytes(DOCUMENT_ENTRY_SIZE * DOCS_TO_CACHE_DURING_MERGE);
-            while (buffer != null) {
-                while (pointer < DOCUMENT_ENTRY_SIZE * DOCS_TO_CACHE_DURING_MERGE) { // until all in-memory buffer is consumed
-                    //get next entry
-                    nextDocumentIndexEntry = Arrays.copyOfRange(buffer, pointer, pointer + DOCUMENT_ENTRY_SIZE);
-                    document = deserializeDocumentIndexEntry(nextDocumentIndexEntry);
-                    documentIndex.put(document.getDocno(), document);
-                    pointer += DOCUMENT_ENTRY_SIZE;
+        byte[] array;
+        try (OutputStream documentOutputIndexStream = new BufferedOutputStream(new FileOutputStream(documentIndexFile))){
+            for(int i = 0; i < numberOfBlocks; ++i) {
+                array = documentInputIndexStreams.get(i).readNBytes(DOCUMENT_ENTRY_SIZE * DOCS_TO_CACHE_DURING_MERGE);
+                while(array != null) {
+                    documentOutputIndexStream.write(array);
+                    array = documentInputIndexStreams.get(i).readNBytes(DOCUMENT_ENTRY_SIZE * DOCS_TO_CACHE_DURING_MERGE);
                 }
-                // TODO: when to call writeToDisk?
-                // otherwise read again from file until it is possible
-                buffer = documentIndexStreams.get(i).readNBytes(DOCUMENT_ENTRY_SIZE * DOCS_TO_CACHE_DURING_MERGE);
             }
         }
     }
