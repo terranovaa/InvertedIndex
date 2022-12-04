@@ -23,18 +23,22 @@ public class Indexer {
     private final double MEMORY_THRESHOLD_PERCENTAGE = 0.75;
     //TODO to change (one term is too long, crashes after having processed around 1.5 millions documents)
     protected final int LEXICON_ENTRY_SIZE = 144;
+    // TODO to change too, docno max size is 20 chars ok? 20*6 + 2*4
+    protected final int DOCUMENT_ENTRY_SIZE = 128;
     //TODO how many terms do we have to cache?
     protected final int TERMS_TO_CACHE_DURING_MERGE = 10;
+    protected final int DOCS_TO_CACHE_DURING_MERGE = 10;
     // useful for giving different names to partial files
     protected int currentBlock = 0;
     // Value needs to be changed
     protected TreeMap<String, LexiconTerm> lexicon = new TreeMap<>();
+
+    // used docno as index since if we use docid and then we flush in the disk we may have problems of collisions / re-usage of the same id
+    protected TreeMap<String, Document> documentIndex = new TreeMap<>();
     // TODO: use language detector to determine language of a word and give the support to many languages?
     protected SnowballStemmer stemmer = new SnowballStemmer(SnowballStemmer.ALGORITHM.ENGLISH);
     // TODO: same here?
     protected HashSet<String> stopwords = new HashSet<>();
-
-
     MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
 
     public Indexer(String stopwordsPath) throws IOException{
@@ -48,6 +52,8 @@ public class Indexer {
         BufferedReader bufferedReader;
         if (tarArchiveEntry != null) {
             // UTF8 or ASCII?
+            //other option that can be adapted Files.newBufferedReader(tarArchiveInputStream, StandardCharsets.UTF_8);
+            // it throws MalformedInputException
             bufferedReader = new BufferedReader(new InputStreamReader(tarArchiveInputStream, StandardCharsets.UTF_8));
             String line;
             while ((line = bufferedReader.readLine()) != null) {
@@ -65,6 +71,14 @@ public class Indexer {
                     System.out.println(currentId);
                 String doc_no = line.substring(0, line.indexOf("\t"));
                 String document = line.substring(line.indexOf("\t") + 1);
+
+                // check empty page
+                if(document.length()==0)
+                    continue;
+
+                // add element to the document index
+                documentIndex.put(doc_no, new Document(currentId, doc_no, document.length()));
+
                 String[] tokens = tokenize(document);
                 for (String token: tokens){
                     //stopword removal & stemming
@@ -81,8 +95,6 @@ public class Indexer {
                     }
                     lexiconEntry.addToPostingList(currentId);
                 }
-                //move on to the next document
-                currentId++;
                 if(currentId > 1000000){
                     writeToDisk();
                     lexicon.clear();
@@ -94,7 +106,6 @@ public class Indexer {
     }
 
     private boolean memoryFull() {
-
         MemoryUsage memoryUsage = memoryMXBean.getHeapMemoryUsage();
         long usedHeap = memoryUsage.getUsed();
         long maxHeap = memoryUsage.getMax();
@@ -117,18 +128,18 @@ public class Indexer {
         String postingsDocIdsFile = "./resources/inverted_index/postings_doc_ids_" + currentBlock + ".dat";
         String postingsFrequenciesFile = "./resources/inverted_index/postings_frequencies_" + currentBlock + ".dat";
         String lexiconFile = "./resources/lexicon/lexicon_" + currentBlock + ".dat";
+        String documentIndexFile = "./resources/documentIndex/documentIndex_" + currentBlock + ".dat";
 
         int docIDsFileOffset = 0;
         int frequenciesFileOffset = 0;
 
         long start = System.currentTimeMillis();
 
-        try (
-                OutputStream postingsDocIdsStream = new BufferedOutputStream(new FileOutputStream(postingsDocIdsFile));
+        try (OutputStream postingsDocIdsStream = new BufferedOutputStream(new FileOutputStream(postingsDocIdsFile));
                 OutputStream postingsFrequenciesStream = new BufferedOutputStream(new FileOutputStream(postingsFrequenciesFile));
-                OutputStream lexiconStream = new BufferedOutputStream(new FileOutputStream(lexiconFile))
+                OutputStream lexiconStream = new BufferedOutputStream(new FileOutputStream(lexiconFile));
+                OutputStream documentIndexStream = new BufferedOutputStream(new FileOutputStream(documentIndexFile))
                 ) {
-
             for (Map.Entry<String, LexiconTerm> entry : lexicon.entrySet()) {
                 LexiconTerm lexiconTerm = entry.getValue();
                 lexiconTerm.setDocIDsOffset(docIDsFileOffset);
@@ -149,21 +160,22 @@ public class Indexer {
                 byte[] lexiconEntry = serializeLexiconEntry(lexiconTerm);
                 lexiconStream.write(lexiconEntry);
             }
+            for (Map.Entry<String, Document> doc : documentIndex.entrySet()) {
+                byte[] documentIndexEntry = serializeDocumentIndexEntry(doc.getValue());
+                documentIndexStream.write(documentIndexEntry);
+            }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
         long end = System.currentTimeMillis();
-
         System.out.println("Copied in " + (end - start) + " ms");
     }
 
     public void mergeBlocks(){
-        try
-        {
+        try {
             int numberOfBlocks = currentBlock + 1;
             int nextBlock = 0;
 
@@ -171,10 +183,12 @@ public class Indexer {
             ArrayList<InputStream> lexiconStreams = new ArrayList<>();
             ArrayList<InputStream> postingsDocIdsStreams = new ArrayList<>();
             ArrayList<InputStream> postingsFrequenciesStreams = new ArrayList<>();
+            ArrayList<InputStream> documentIndexStreams = new ArrayList<>();
             while(nextBlock < numberOfBlocks){
                 lexiconStreams.add(new BufferedInputStream(new FileInputStream("./resources/lexicon/lexicon_" + nextBlock + ".dat")));
                 postingsDocIdsStreams.add(new BufferedInputStream(new FileInputStream("./resources/inverted_index/postings_doc_ids_" + nextBlock + ".dat")));
                 postingsFrequenciesStreams.add(new BufferedInputStream(new FileInputStream("./resources/inverted_index/postings_frequencies_" + nextBlock + ".dat")));
+                documentIndexStreams.add(new BufferedInputStream(new FileInputStream("./resources/documentIndex/documentIndex_" + nextBlock + ".dat")));
                 nextBlock++;
             }
 
@@ -245,6 +259,8 @@ public class Indexer {
             }
 
             lexicon.put(referenceLexiconTerm.getTerm(), referenceLexiconTerm);
+            //mergeDocumentIndexes(numberOfBlocks);
+
             currentBlock = 100;
             writeToDisk();
         } catch (IOException ioe){
@@ -253,6 +269,40 @@ public class Indexer {
         //TODO skip pointers if the sum of the doc frequencies is > 1024
     }
 
+    // TODO: or is it enough to merge files?
+    private void mergeDocumentIndexes(int numberOfBlocks) throws IOException {
+        int nextBlock=0;
+        ArrayList<InputStream> documentIndexStreams = new ArrayList<>();
+        while(nextBlock < numberOfBlocks){
+            documentIndexStreams.add(new BufferedInputStream(new FileInputStream("./resources/documentIndex/documentIndex_" + nextBlock + ".dat")));
+            nextBlock++;
+        }
+
+        //cache in memory of the first terms in the document index of each block
+        byte[] buffer;
+        byte[] nextDocumentIndexEntry;
+        Document document;
+
+        // global variable so that it can be used by writeToDisk
+        documentIndex = new TreeMap<>();
+        int pointer = 0;
+        for(int i=0; i < numberOfBlocks; i++){
+            //read from file
+            buffer = documentIndexStreams.get(i).readNBytes(DOCUMENT_ENTRY_SIZE * DOCS_TO_CACHE_DURING_MERGE);
+            while (buffer != null) {
+                while (pointer < DOCUMENT_ENTRY_SIZE * DOCS_TO_CACHE_DURING_MERGE) { // until all in-memory buffer is consumed
+                    //get next entry
+                    nextDocumentIndexEntry = Arrays.copyOfRange(buffer, pointer, pointer + DOCUMENT_ENTRY_SIZE);
+                    document = deserializeDocumentIndexEntry(nextDocumentIndexEntry);
+                    documentIndex.put(document.getDocno(), document);
+                    pointer += DOCUMENT_ENTRY_SIZE;
+                }
+                // TODO: when to call writeToDisk?
+                // otherwise read again from file until it is possible
+                buffer = documentIndexStreams.get(i).readNBytes(DOCUMENT_ENTRY_SIZE * DOCS_TO_CACHE_DURING_MERGE);
+            }
+        }
+    }
 
     //encode lexiconTerm object as an array of bytes with fixed dimension
     private byte[] serializeLexiconEntry(LexiconTerm lexiconTerm) {
@@ -276,6 +326,22 @@ public class Indexer {
         System.arraycopy(entryDocIDSize, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 8, 4);
         System.arraycopy(entryFrequenciesSize, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 4, 4);
         return lexiconEntry;
+    }
+
+    //encode document object as an array of bytes with fixed dimension
+    private byte[] serializeDocumentIndexEntry(Document document) {
+        byte[] documentEntry = new byte[DOCUMENT_ENTRY_SIZE];
+        //variable number of bytes
+        byte[] docno = document.getDocno().getBytes(StandardCharsets.UTF_8);
+        //fixed number of bytes, 4 for each integer
+        byte[] docid = Utils.intToByteArray(document.getDocid());
+        byte[] doclength = Utils.intToByteArray(document.getLength());
+        //fill the first part of the buffer with the utf-8 representation of the docno, leave the rest to 0
+        System.arraycopy(docno, 0, documentEntry, 0, docno.length);
+        //fill the last part of the buffer
+        System.arraycopy(docid, 0, documentEntry, LEXICON_ENTRY_SIZE - 8, 4);
+        System.arraycopy(doclength, 0, documentEntry, LEXICON_ENTRY_SIZE - 4, 4);
+        return documentEntry;
     }
 
     //decode a disk-based array of bytes representing a lexicon entry in a LexiconTerm object
@@ -302,5 +368,22 @@ public class Indexer {
         lexiconTerm.setDocIDsSize(docIdSize);
         lexiconTerm.setFrequenciesSize(frequenciesSize);
         return lexiconTerm;
+    }
+
+    //decode a disk-based array of bytes representing a document index entry in a Document object
+    private Document deserializeDocumentIndexEntry(byte[] buffer) {
+        //to decode the term, detect the position of the first byte equal 0
+        int endOfString = 0;
+
+        while(buffer[endOfString] != 0){
+            endOfString++;
+        }
+        //parse only the first part of the buffer until the first byte equal 0
+        String docno = new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
+        //decode the rest of the buffer
+        int docid = Utils.byteArrayToInt(buffer, DOCUMENT_ENTRY_SIZE - 8);
+        int doclength = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 4);
+        Document doc = new Document(docid, docno, doclength);
+        return doc;
     }
 }
