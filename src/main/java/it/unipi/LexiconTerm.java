@@ -128,6 +128,8 @@ public class LexiconTerm {
 
     public void addPosting(int docID, int frequency){
         postingList.add(new Posting(docID, frequency));
+        postingListDocIds.add(docID);
+        postingListFrequencies.add(frequency);
     }
 
     //DEBUG

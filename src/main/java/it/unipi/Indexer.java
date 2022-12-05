@@ -99,7 +99,7 @@ public class Indexer {
                 }
 
                 // DEBUG
-                if(currentDocId > 1000){
+                if(currentDocId > 1100000){
                     writeToDisk();
                     lexicon.clear();
                     break;
@@ -134,12 +134,16 @@ public class Indexer {
             LexiconTerm[] nextTerm = new LexiconTerm[numberOfBlocks];
             //used to keep track of current pointer in each buffer
             int[] pointers = new int[numberOfBlocks];
+            //used to keep track of how many bytes were read the last time
+            int[] bytesRead = new int[numberOfBlocks];
+            ArrayList<Integer> activeBlocks = new ArrayList<>();
 
             String minTerm = null;
 
             for(int i=0; i < numberOfBlocks; i++){
+                activeBlocks.add(i);
                 //read from file
-                buffers[i] = lexiconStreams.get(i).readNBytes(LEXICON_ENTRY_SIZE * TERMS_TO_CACHE_DURING_MERGE);
+                bytesRead[i] = lexiconStreams.get(i).readNBytes(buffers[i], 0,LEXICON_ENTRY_SIZE * TERMS_TO_CACHE_DURING_MERGE);
                 //get next entry
                 nextLexiconEntry[i] = Arrays.copyOfRange(buffers[i], pointers[i], LEXICON_ENTRY_SIZE);
                 nextTerm[i] = new LexiconTerm();
@@ -149,53 +153,69 @@ public class Indexer {
                 }
             }
 
-            //TODO while every lexicon has still terms remaining
-            ArrayList<Integer> lexiconsToMerge = new ArrayList<>();
+            while(activeBlocks.size() > 0){
 
-            //get the block indexes that have the current min term
-            for(int i=0; i < numberOfBlocks; i++){
-                if(nextTerm[i].getTerm().equals(minTerm)){
-                    lexiconsToMerge.add(i);
+                ArrayList<Integer> lexiconsToMerge = new ArrayList<>();
+
+                minTerm = null;
+
+                for(Integer blockIndex: activeBlocks){
+                    if (minTerm == null || nextTerm[blockIndex].getTerm().compareTo(minTerm) < 0) {
+                        minTerm = nextTerm[blockIndex].getTerm();
+                    }
                 }
+
+                for(Integer blockIndex: activeBlocks){
+                    if(nextTerm[blockIndex].getTerm().equals(minTerm)){
+                        lexiconsToMerge.add(blockIndex);
+                    }
+                }
+
+                //create a new lexiconTerm object for the min term
+                LexiconTerm referenceLexiconTerm = new LexiconTerm(nextTerm[lexiconsToMerge.get(0)].getTerm());
+
+                //merge everything
+                for (Integer blockIndex: lexiconsToMerge){
+                    LexiconTerm toMerge = nextTerm[blockIndex];
+                    //merge statistics
+                    referenceLexiconTerm.setDocumentFrequency(referenceLexiconTerm.getDocumentFrequency() + toMerge.getDocumentFrequency());
+                    referenceLexiconTerm.setCollectionFrequency(referenceLexiconTerm.getCollectionFrequency() + toMerge.getCollectionFrequency());
+                    //get posting list from disk
+                    byte[] postingDocIDs = postingsDocIdsStreams.get(blockIndex).readNBytes(toMerge.getDocIdsSize());
+                    byte[] postingFrequencies = postingsFrequenciesStreams.get(blockIndex).readNBytes(toMerge.getFrequenciesSize());
+                    ArrayList<Integer> docIDs = Utils.decode(postingDocIDs);
+                    ArrayList<Integer> frequencies = Utils.decode(postingFrequencies);
+                    //merge postings
+                    for (Integer docID: docIDs){
+                        Integer frequency = frequencies.remove(0);
+                        referenceLexiconTerm.addPosting(docID, frequency);
+
+                    }
+
+                    //update pointers for every block
+                    pointers[blockIndex] += LEXICON_ENTRY_SIZE;
+                    if(pointers[blockIndex] == bytesRead[blockIndex]){
+                        if (bytesRead[blockIndex] < LEXICON_ENTRY_SIZE*TERMS_TO_CACHE_DURING_MERGE){
+                            //if before we read less than those bytes, the relative block is finished
+                            //blockIndex is not the index of the arraylist but an Integer object
+                            activeBlocks.remove(blockIndex);
+                        }
+                        else{
+                            //if all the in-memory buffer is consumed, refill it reading again from file
+                            bytesRead[blockIndex] = lexiconStreams.get(blockIndex).readNBytes(buffers[blockIndex], 0, LEXICON_ENTRY_SIZE * TERMS_TO_CACHE_DURING_MERGE);
+                            pointers[blockIndex] = 0;
+                        }
+
+                    }
+                    if(activeBlocks.contains(blockIndex)){
+                        //read the next entry from the buffer
+                        nextLexiconEntry[blockIndex] = Arrays.copyOfRange(buffers[blockIndex], pointers[blockIndex], pointers[blockIndex] + LEXICON_ENTRY_SIZE);
+                        nextTerm[blockIndex].deserialize(nextLexiconEntry[blockIndex]);
+                    }
+                }
+
+                lexicon.put(referenceLexiconTerm.getTerm(), referenceLexiconTerm);
             }
-
-            //create a new lexiconTerm object for the min term
-            LexiconTerm referenceLexiconTerm = new LexiconTerm(nextTerm[lexiconsToMerge.get(0)].getTerm());
-
-            //merge everything
-            for (Integer blockIndex: lexiconsToMerge){
-                LexiconTerm toMerge = nextTerm[blockIndex];
-                //merge statistics
-                referenceLexiconTerm.setDocumentFrequency(referenceLexiconTerm.getDocumentFrequency() + toMerge.getDocumentFrequency());
-                referenceLexiconTerm.setCollectionFrequency(referenceLexiconTerm.getCollectionFrequency() + toMerge.getCollectionFrequency());
-                //get posting list from disk
-                byte[] postingDocIDs = postingsDocIdsStreams.get(blockIndex).readNBytes(toMerge.getDocIdsSize());
-                byte[] postingFrequencies = postingsFrequenciesStreams.get(blockIndex).readNBytes(toMerge.getFrequenciesSize());
-                ArrayList<Integer> docIDs = Utils.decode(postingDocIDs);
-                ArrayList<Integer> frequencies = Utils.decode(postingFrequencies);
-                //merge postings
-                for (Integer docID: docIDs){
-                    Integer frequency = frequencies.remove(0);
-                    referenceLexiconTerm.addPosting(docID, frequency);
-                }
-
-                //TODO should work but didn't try
-                //update pointers for every block
-                pointers[blockIndex] += LEXICON_ENTRY_SIZE;
-                if(pointers[blockIndex] == LEXICON_ENTRY_SIZE * TERMS_TO_CACHE_DURING_MERGE){
-                    //if all the in-memory buffer is consumed, read again from file
-                    buffers[blockIndex] = lexiconStreams.get(blockIndex).readNBytes(LEXICON_ENTRY_SIZE * TERMS_TO_CACHE_DURING_MERGE);
-                    pointers[blockIndex] = 0;
-                    nextLexiconEntry[blockIndex] = Arrays.copyOfRange(buffers[blockIndex], pointers[blockIndex], pointers[blockIndex] + LEXICON_ENTRY_SIZE);
-                    nextTerm[blockIndex].deserialize(nextLexiconEntry[blockIndex]);
-                } else{
-                    //if not, read the next entry directly from the buffer
-                    nextLexiconEntry[blockIndex] = Arrays.copyOfRange(buffers[blockIndex], pointers[blockIndex], pointers[blockIndex] + LEXICON_ENTRY_SIZE);
-                    nextTerm[blockIndex].deserialize(nextLexiconEntry[blockIndex]);
-                }
-            }
-
-            lexicon.put(referenceLexiconTerm.getTerm(), referenceLexiconTerm);
 
             // TODO: uncomment when finished
             //mergeDocumentIndexes();
@@ -206,6 +226,15 @@ public class Indexer {
             ioe.printStackTrace();
         }
         //TODO skip pointers if the sum of the doc frequencies is > 1024
+    }
+
+    private boolean atLeastOneBlockOpen(boolean[] closedBlock){
+        for(int i = 0; i < closedBlock.length; i++){
+            if(!closedBlock[i]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void mergeDocumentIndexes() throws IOException {
