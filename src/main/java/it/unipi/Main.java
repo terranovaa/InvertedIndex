@@ -17,11 +17,12 @@ public class Main {
         Indexer indexer;
         // TODO: is this what it refers to, talking about compile flags?
         if(args.length == 2) {
-            System.out.println("The user has provided flags for stopwords and stemming");
+            System.out.println("The user has provided flags for stop words and stemming");
             indexer = new Indexer(Boolean.parseBoolean(args[0]), stopwordsPath, Boolean.parseBoolean(args[1]));
         } else //default case
             indexer = new Indexer( true, stopwordsPath,true);
         indexer.indexCollection(collectionPath);
+        indexer.mergeBlocks();
         // TODO: Ideally, your program should have a compile flag that allows you to use ASCII format during debugging and binary format for performance.
     }
 }

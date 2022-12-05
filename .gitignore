@@ -1,3 +1,5 @@
 /collection/
 /resources/inverted_index
 /resources/lexicon
+/resources/documentIndex/
+/target/

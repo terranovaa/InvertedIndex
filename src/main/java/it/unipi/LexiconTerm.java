@@ -1,30 +1,35 @@
 package it.unipi;
 
+import it.unipi.utils.Utils;
+
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 public class LexiconTerm {
-    //probably not needed
-    private final String term;
+    // TODO this field takes up space in memory, maybe we can remove it?
+    private String term;
     //number of documents containing the term
     private int documentFrequency;
     //number of total occurrences of the term
     private int collectionFrequency;
     //posting_list of the term during indexing
-    private final ArrayList<Posting> postingList;
+    private final ArrayList<Posting> postingList = new ArrayList<>();
     //useful for checking if a docid already belongs to the posting
-    private int lastDocIDInserted;
+    private final ArrayList<Integer> postingListDocIds = new ArrayList<>();
+    private final ArrayList<Integer> postingListFrequencies = new ArrayList<>();
+    private int lastDocIdInserted;
 
-    private int docIDsOffset;
+    private int docIdsOffset;
     private int frequenciesOffset;
-    private int docIDsSize;
+    private int docIdsSize;
     private int frequenciesSize;
 
-    public int getDocIDsOffset() {
-        return docIDsOffset;
+    public int getDocIdsOffset() {
+        return docIdsOffset;
     }
 
-    public void setDocIDsOffset(int docIDsOffset) {
-        this.docIDsOffset = docIDsOffset;
+    public void setDocIdsOffset(int docIdsOffset) {
+        this.docIdsOffset = docIdsOffset;
     }
 
     public int getFrequenciesOffset() {
@@ -35,12 +40,12 @@ public class LexiconTerm {
         this.frequenciesOffset = frequenciesOffset;
     }
 
-    public int getDocIDsSize() {
-        return docIDsSize;
+    public int getDocIdsSize() {
+        return docIdsSize;
     }
 
-    public void setDocIDsSize(int docIDsSize) {
-        this.docIDsSize = docIDsSize;
+    public void setDocIdsSize(int docIdsSize) {
+        this.docIdsSize = docIdsSize;
     }
 
     public int getFrequenciesSize() {
@@ -75,36 +80,50 @@ public class LexiconTerm {
         return postingList;
     }
 
-    public int getLastDocIDInserted() {
-        return lastDocIDInserted;
+    public int getLastDocIdInserted() {
+        return lastDocIdInserted;
     }
 
-    public void setLastDocIDInserted(int lastDocIDInserted) {
-        this.lastDocIDInserted = lastDocIDInserted;
+    public void setLastDocIdInserted(int lastDocIdInserted) {
+        this.lastDocIdInserted = lastDocIdInserted;
+    }
+
+    public LexiconTerm() {
     }
 
     public LexiconTerm(String term) {
         this.term = term;
         documentFrequency = 0;
         collectionFrequency = 0;
-        lastDocIDInserted = -1;
-        postingList = new ArrayList<>();
+        lastDocIdInserted = -1;
     }
 
     public void addToPostingList(int docID) {
         //increase total occurrences by 1
         collectionFrequency++;
-        if(lastDocIDInserted != docID){
+        if(lastDocIdInserted != docID){
             //first occurrence in current document
             documentFrequency++;
-            lastDocIDInserted = docID;
+            lastDocIdInserted = docID;
             postingList.add(new Posting(docID, 1));
+            postingListDocIds.add(docID);
+            postingListFrequencies.add(1);
         }
         else{
             //additional occurrence for the previous document
             Posting docPosting = postingList.get(postingList.size() - 1);
             docPosting.increaseFrequency();
+            Integer frequency = postingListFrequencies.get(postingList.size() - 1);
+            postingListFrequencies.set(postingList.size() - 1, frequency + 1);
         }
+    }
+
+    public ArrayList<Integer> getPostingListDocIds() {
+        return postingListDocIds;
+    }
+
+    public ArrayList<Integer> getPostingListFrequencies() {
+        return postingListFrequencies;
     }
 
     public void addPosting(int docID, int frequency){
@@ -116,13 +135,58 @@ public class LexiconTerm {
         System.out.println("term: " + term +
                 " | df: " + documentFrequency +
                 " | cf: " + collectionFrequency +
-                " | dOffset: " + docIDsOffset +
+                " | dOffset: " + docIdsOffset +
                 " | fOffset: " + frequenciesOffset +
-                " | dSize: " + docIDsSize +
+                " | dSize: " + docIdsSize +
                 " | fSize: " + frequenciesSize);
         for(Posting posting: postingList){
             System.out.print("[" + "docID: " + posting.getDocID() + " | freq: " + posting.getFrequency() + "] ");
         }
         System.out.println("\n------------------------------");
+    }
+
+     byte[] serialize() {
+
+        final int LEXICON_ENTRY_SIZE = 144;
+
+        byte[] lexiconEntry = new byte[LEXICON_ENTRY_SIZE];
+        //variable number of bytes
+        byte[] entryTerm = term.getBytes(StandardCharsets.UTF_8);
+        //fixed number of bytes, 4 for each integer
+        byte[] entryDf = Utils.intToByteArray(documentFrequency);
+        byte[] entryCf = Utils.intToByteArray(collectionFrequency);
+        byte[] entryDocIDOffset = Utils.intToByteArray(docIdsOffset);
+        byte[] entryFrequenciesOffset = Utils.intToByteArray(frequenciesOffset);
+        byte[] entryDocIDSize = Utils.intToByteArray(docIdsSize);
+        byte[] entryFrequenciesSize = Utils.intToByteArray(frequenciesSize);
+        //fill the first part of the buffer with the utf-8 representation of the term, leave the rest to 0
+        System.arraycopy(entryTerm, 0, lexiconEntry, 0, entryTerm.length);
+        //fill the last part of the buffer with statistics and offsets
+        System.arraycopy(entryDf, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 24, 4);
+        System.arraycopy(entryCf, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 20, 4);
+        System.arraycopy(entryDocIDOffset, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 16, 4);
+        System.arraycopy(entryFrequenciesOffset, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 12, 4);
+        System.arraycopy(entryDocIDSize, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 8, 4);
+        System.arraycopy(entryFrequenciesSize, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 4, 4);
+        return lexiconEntry;
+    }
+
+    //decode a disk-based array of bytes representing a lexicon entry in a LexiconTerm object
+     void deserialize(byte[] buffer) {
+        final int LEXICON_ENTRY_SIZE = 144;
+        //to decode the term, detect the position of the first byte equal 0
+        int endOfString = 0;
+        while(buffer[endOfString] != 0){
+            endOfString++;
+        }
+        //parse only the first part of the buffer until the first byte equal 0
+        term = new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
+        //decode the rest of the buffer
+        documentFrequency = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 24);
+        collectionFrequency = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 20);
+        docIdsOffset = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 16);
+        frequenciesOffset = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 12);
+        docIdsSize = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 8);
+        frequenciesSize = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 4);
     }
 }

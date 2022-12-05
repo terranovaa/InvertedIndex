@@ -1,5 +1,6 @@
 package it.unipi.utils;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -55,14 +56,11 @@ public final class Utils {
 
     //given an integer return the byte representation
     public static byte[] intToByteArray(int value) {
-        return new byte[] {
-                (byte)(value >>> 24),
-                (byte)(value >>> 16),
-                (byte)(value >>> 8),
-                (byte)value};
+        return ByteBuffer.allocate(4).putInt(value).array();
     }
 
     public static int byteArrayToInt(byte[] value, int startIndex) {
+        //return ByteBuffer.wrap(value).getInt(startIndex);
         return ((value[startIndex] & 0xFF) << 24) |
                 ((value[startIndex + 1] & 0xFF) << 16) |
                 ((value[startIndex + 2] & 0xFF) << 8 ) |
