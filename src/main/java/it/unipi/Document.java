@@ -4,6 +4,7 @@ import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 public class Document {
     private int docId;
@@ -52,7 +53,7 @@ public class Document {
 
 
     //encode document object as an array of bytes with fixed dimension
-     byte[] serialize() {
+     byte[] serializeBinary() {
          // TODO to change too, docno max size is 20 chars ok? 20*6 + 2*4
 
          byte[] documentEntry = new byte[Constants.DOCUMENT_ENTRY_SIZE];
@@ -70,13 +71,20 @@ public class Document {
          return documentEntry;
     }
 
+    //encode document object as an array of Strings
+    String[] serializeTextual() {
+        ArrayList<String> list = new ArrayList<>();
+        list.add(docNo);
+        list.add(Integer.toString(docId));
+        list.add(Integer.toString(length));
+        return list.toArray(new String[list.size()]);
+    }
+
 
     //decode a disk-based array of bytes representing a document index entry in a Document object
-    void deserialize(byte[] buffer) {
-
+    void deserializeBinary(byte[] buffer) {
         //to decode the docNo, detect the position of the first byte equal 0
         int endOfString = 0;
-
         while(buffer[endOfString] != 0){
             endOfString++;
         }
@@ -86,4 +94,6 @@ public class Document {
         docId = Utils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE - 8);
         length = Utils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE - 4);
     }
+
+
 }

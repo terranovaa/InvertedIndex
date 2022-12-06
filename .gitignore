@@ -1,6 +1,8 @@
 /collection/
 /resources/inverted_index
 /resources/lexicon
+/collection/collection.tar.gz
+/resources/documentIndex/
 /resources/document_table/
 /target/
 /resources/document_table.dat

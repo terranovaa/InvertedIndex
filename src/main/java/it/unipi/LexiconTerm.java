@@ -2,10 +2,12 @@ package it.unipi;
 
 import it.unipi.utils.Utils;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class LexiconTerm {
@@ -154,7 +156,7 @@ public class LexiconTerm {
         System.out.println("\n------------------------------");
     }
 
-     byte[] serialize() {
+     byte[] serializeBinary() {
 
         final int LEXICON_ENTRY_SIZE = 144;
 
@@ -180,8 +182,16 @@ public class LexiconTerm {
         return lexiconEntry;
     }
 
+    public String[] serializeTextual() {
+        ArrayList<String> list = new ArrayList<>();
+        list.add(term);
+        list.add(Integer.toString(documentFrequency));
+        list.add(Integer.toString(collectionFrequency));
+        return list.toArray(new String[list.size()]);
+    }
+
     //decode a disk-based array of bytes representing a lexicon entry in a LexiconTerm object
-     void deserialize(byte[] buffer) {
+     void deserializeBinary(byte[] buffer) {
         final int LEXICON_ENTRY_SIZE = 144;
         //to decode the term, detect the position of the first byte equal 0
         int endOfString = 0;
@@ -199,7 +209,14 @@ public class LexiconTerm {
         frequenciesSize = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 4);
     }
 
-    void writeToDisk(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream) throws IOException {
+    void deserializeTextual(String buffer) {
+        List<String> elements = Arrays.asList(buffer.split(","));
+        term = elements.get(0);
+        documentFrequency = Integer.parseInt(elements.get(1));
+        collectionFrequency = Integer.parseInt(elements.get(2));
+    }
+
+    void writeToDiskBinary(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream) throws IOException {
         this.setDocIdsOffset(docIDsFileOffset);
         this.setFrequenciesOffset(frequenciesFileOffset);
         // docIDs
@@ -213,6 +230,29 @@ public class LexiconTerm {
         this.setFrequenciesSize(encodedFrequencies.length);
         frequenciesStream.write(encodedFrequencies);
         // lexicon
-        lexiconStream.write(this.serialize());
+        lexiconStream.write(this.serializeBinary());
+    }
+
+    void writeToDiskTextual(BufferedWriter docIDStream, BufferedWriter frequenciesStream, BufferedWriter lexiconStream) throws IOException {
+        //docIDs
+        List<Integer> docIDs = this.getPostingListDocIds();
+        for(int i = 0; i < docIDs.size(); ++i)
+            if(i != docIDs.size()-1)
+                docIDStream.write(docIDs.get(i).toString()+",");
+            else docIDStream.write(docIDs.get(i).toString()+"\n");
+
+        // frequencies
+        List<Integer> frequencies = this.getPostingListFrequencies();
+        for(int i = 0; i < frequencies.size(); ++i)
+            if(i != frequencies.size()-1)
+                frequenciesStream.write(frequencies.get(i).toString()+",");
+            else frequenciesStream.write(frequencies.get(i).toString()+"\n");
+
+        //lexicon term
+        String[] lexiconEntry = this.serializeTextual();
+        for(int i = 0; i < lexiconEntry.length; ++i)
+            if(i != lexiconEntry.length-1)
+                lexiconStream.write(lexiconEntry[i]+",");
+            else lexiconStream.write(lexiconEntry[i]+"\n");
     }
 }

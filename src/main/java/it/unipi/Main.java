@@ -5,10 +5,7 @@ import it.unipi.utils.Constants;
 import java.io.IOException;
 
 public class Main {
-
-    private static final String collectionPath = "./collection/collection.tar.gz";
-    private static final String stopwordsPath = "./resources/stopwords.txt";
-
+    // TODO: dinamically create folders needed for the environment at startup, i.e. resources/document_table, etc.
     public static void main(String[] args) throws IOException {
         Indexer indexer;
         if(args.length == 1) {
@@ -16,8 +13,8 @@ public class Main {
                 throw new RuntimeException("File format not supported");
             }
             indexer = new Indexer(args[0]);
-        } else //default case // TODO default case should be BINARY
-            indexer = new Indexer(Constants.DAT_FORMAT);
+        } else // default case binary
+            indexer = new Indexer(Constants.TXT_FORMAT);
         long start = System.currentTimeMillis();
         indexer.indexCollection();
         long end = System.currentTimeMillis();
