@@ -1,5 +1,6 @@
 package it.unipi;
 
+import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
 import java.nio.charset.StandardCharsets;
@@ -53,9 +54,8 @@ public class Document {
     //encode document object as an array of bytes with fixed dimension
      byte[] serialize() {
          // TODO to change too, docno max size is 20 chars ok? 20*6 + 2*4
-         final int DOCUMENT_ENTRY_SIZE = 128;
 
-         byte[] documentEntry = new byte[DOCUMENT_ENTRY_SIZE];
+         byte[] documentEntry = new byte[Constants.DOCUMENT_ENTRY_SIZE];
          //variable number of bytes
          byte[] docNo = this.getDocNo().getBytes(StandardCharsets.UTF_8);
          //fixed number of bytes, 4 for each integer
@@ -65,8 +65,8 @@ public class Document {
          //fill the first part of the buffer with the utf-8 representation of the docno, leave the rest to 0
          System.arraycopy(docNo, 0, documentEntry, 0, docNo.length);
          //fill the last part of the buffer
-         System.arraycopy(docId, 0, documentEntry, DOCUMENT_ENTRY_SIZE - 8, 4);
-         System.arraycopy(docLength, 0, documentEntry, DOCUMENT_ENTRY_SIZE - 4, 4);
+         System.arraycopy(docId, 0, documentEntry, Constants.DOCUMENT_ENTRY_SIZE - 8, 4);
+         System.arraycopy(docLength, 0, documentEntry, Constants.DOCUMENT_ENTRY_SIZE - 4, 4);
          return documentEntry;
     }
 
@@ -74,7 +74,6 @@ public class Document {
     //decode a disk-based array of bytes representing a document index entry in a Document object
     void deserialize(byte[] buffer) {
 
-        final int DOCUMENT_ENTRY_SIZE = 128;
         //to decode the docNo, detect the position of the first byte equal 0
         int endOfString = 0;
 
@@ -84,7 +83,7 @@ public class Document {
         //parse only the first part of the buffer until the first byte equal 0
         docNo = new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
         //decode the rest of the buffer
-        docId = Utils.byteArrayToInt(buffer, DOCUMENT_ENTRY_SIZE - 8);
-        length = Utils.byteArrayToInt(buffer, DOCUMENT_ENTRY_SIZE - 4);
+        docId = Utils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE - 8);
+        length = Utils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE - 4);
     }
 }

@@ -1,12 +1,8 @@
 package it.unipi;
 
-import it.unipi.utils.Utils;
+import it.unipi.utils.Constants;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 public class Main {
 
@@ -15,14 +11,17 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         Indexer indexer;
-        // TODO: is this what it refers to, talking about compile flags?
-        if(args.length == 2) {
-            System.out.println("The user has provided flags for stop words and stemming");
-            indexer = new Indexer(Boolean.parseBoolean(args[0]), stopwordsPath, Boolean.parseBoolean(args[1]));
-        } else //default case
-            indexer = new Indexer( true, stopwordsPath,true);
-        indexer.indexCollection(collectionPath);
+        if(args.length == 1) {
+            if (!args[0].equals(Constants.DAT_FORMAT) && !args[0].equals(Constants.TXT_FORMAT)) {
+                throw new RuntimeException("File format not supported");
+            }
+            indexer = new Indexer(args[0]);
+        } else //default case // TODO default case should be BINARY
+            indexer = new Indexer(Constants.DAT_FORMAT);
+        long start = System.currentTimeMillis();
+        indexer.indexCollection();
+        long end = System.currentTimeMillis();
+        System.out.println("Indexed in " + (end - start) + " ms");
         indexer.mergeBlocks();
-        // TODO: Ideally, your program should have a compile flag that allows you to use ASCII format during debugging and binary format for performance.
     }
 }

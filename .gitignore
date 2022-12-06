@@ -1,5 +1,9 @@
 /collection/
 /resources/inverted_index
 /resources/lexicon
-/resources/documentIndex/
+/resources/document_table/
 /target/
+/resources/document_table.dat
+/resources/lexicon.dat
+/resources/postings_doc_ids.dat
+/resources/postings_frequencies.dat
