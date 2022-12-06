@@ -2,8 +2,11 @@ package it.unipi;
 
 import it.unipi.utils.Utils;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 
 public class LexiconTerm {
     // TODO this field takes up space in memory, maybe we can remove it?
@@ -23,6 +26,10 @@ public class LexiconTerm {
     private int frequenciesOffset;
     private int docIdsSize;
     private int frequenciesSize;
+
+    //used to keep pointers during merge
+    static private int docIDsFileOffset = 0;
+    static private int frequenciesFileOffset = 0;
 
     public int getDocIdsOffset() {
         return docIdsOffset;
@@ -190,5 +197,22 @@ public class LexiconTerm {
         frequenciesOffset = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 12);
         docIdsSize = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 8);
         frequenciesSize = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 4);
+    }
+
+    void writeToDisk(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream) throws IOException {
+        this.setDocIdsOffset(docIDsFileOffset);
+        this.setFrequenciesOffset(frequenciesFileOffset);
+        // docIDs
+        byte[] encodedDocIDs = Utils.encode(this.getPostingListDocIds());
+        docIDsFileOffset += encodedDocIDs.length;
+        this.setDocIdsSize(encodedDocIDs.length);
+        docIDStream.write(encodedDocIDs);
+        // frequencies
+        byte[] encodedFrequencies = Utils.encode(this.getPostingListFrequencies());
+        frequenciesFileOffset += encodedFrequencies.length;
+        this.setFrequenciesSize(encodedFrequencies.length);
+        frequenciesStream.write(encodedFrequencies);
+        // lexicon
+        lexiconStream.write(this.serialize());
     }
 }

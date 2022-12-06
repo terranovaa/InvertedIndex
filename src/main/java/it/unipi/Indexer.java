@@ -111,7 +111,17 @@ public class Indexer {
     }
 
     public void mergeBlocks(){
-        try {
+
+        long start = System.currentTimeMillis();
+
+        String postingsDocIdsFile = "./resources/inverted_index/postings_doc_ids.dat";
+        String postingsFrequenciesFile = "./resources/inverted_index/postings_frequencies_.dat";
+        String lexiconFile = "./resources/lexicon/lexicon_.dat";
+
+        try (OutputStream outputDocIdsStream = new BufferedOutputStream(new FileOutputStream(postingsDocIdsFile));
+             OutputStream outputFrequenciesStream = new BufferedOutputStream(new FileOutputStream(postingsFrequenciesFile));
+             OutputStream outputLexiconStream = new BufferedOutputStream(new FileOutputStream(lexiconFile))){
+
             int numberOfBlocks = currentBlock + 1;
             int nextBlock = 0;
 
@@ -176,25 +186,27 @@ public class Indexer {
 
                 //merge everything
                 for (Integer blockIndex: lexiconsToMerge){
-                    LexiconTerm toMerge = nextTerm[blockIndex];
+                    LexiconTerm nextBlockToMerge = nextTerm[blockIndex];
+
                     //merge statistics
-                    referenceLexiconTerm.setDocumentFrequency(referenceLexiconTerm.getDocumentFrequency() + toMerge.getDocumentFrequency());
-                    referenceLexiconTerm.setCollectionFrequency(referenceLexiconTerm.getCollectionFrequency() + toMerge.getCollectionFrequency());
+                    referenceLexiconTerm.setDocumentFrequency(referenceLexiconTerm.getDocumentFrequency() + nextBlockToMerge.getDocumentFrequency());
+                    referenceLexiconTerm.setCollectionFrequency(referenceLexiconTerm.getCollectionFrequency() + nextBlockToMerge.getCollectionFrequency());
+
                     //get posting list from disk
-                    byte[] postingDocIDs = postingsDocIdsStreams.get(blockIndex).readNBytes(toMerge.getDocIdsSize());
-                    byte[] postingFrequencies = postingsFrequenciesStreams.get(blockIndex).readNBytes(toMerge.getFrequenciesSize());
+                    byte[] postingDocIDs = postingsDocIdsStreams.get(blockIndex).readNBytes(nextBlockToMerge.getDocIdsSize());
+                    byte[] postingFrequencies = postingsFrequenciesStreams.get(blockIndex).readNBytes(nextBlockToMerge.getFrequenciesSize());
                     ArrayList<Integer> docIDs = Utils.decode(postingDocIDs);
                     ArrayList<Integer> frequencies = Utils.decode(postingFrequencies);
+
                     //merge postings
                     for (Integer docID: docIDs){
                         Integer frequency = frequencies.remove(0);
                         referenceLexiconTerm.addPosting(docID, frequency);
-
                     }
 
                     //update pointers for every block
                     pointers[blockIndex] += LEXICON_ENTRY_SIZE;
-                    if(pointers[blockIndex] == bytesRead[blockIndex]){
+                    if(pointers[blockIndex] >= bytesRead[blockIndex]){
                         if (bytesRead[blockIndex] < LEXICON_ENTRY_SIZE*TERMS_TO_CACHE_DURING_MERGE){
                             //if before we read less than those bytes, the relative block is finished
                             //blockIndex is not the index of the arraylist but an Integer object
@@ -203,6 +215,9 @@ public class Indexer {
                         else{
                             //if all the in-memory buffer is consumed, refill it reading again from file
                             bytesRead[blockIndex] = lexiconStreams.get(blockIndex).readNBytes(buffers[blockIndex], 0, LEXICON_ENTRY_SIZE * TERMS_TO_CACHE_DURING_MERGE);
+                            if(bytesRead[blockIndex] == 0){
+                                activeBlocks.remove(blockIndex);
+                            }
                             pointers[blockIndex] = 0;
                         }
 
@@ -213,28 +228,18 @@ public class Indexer {
                         nextTerm[blockIndex].deserialize(nextLexiconEntry[blockIndex]);
                     }
                 }
-
-                lexicon.put(referenceLexiconTerm.getTerm(), referenceLexiconTerm);
+                referenceLexiconTerm.writeToDisk(outputDocIdsStream, outputFrequenciesStream, outputLexiconStream);
             }
 
             // TODO: uncomment when finished
             //mergeDocumentIndexes();
+            long end = System.currentTimeMillis();
+            System.out.println("Merged in " + (end - start) + " ms");
 
-            currentBlock = 100;
-            writeToDisk();
         } catch (IOException ioe){
             ioe.printStackTrace();
         }
         //TODO skip pointers if the sum of the doc frequencies is > 1024
-    }
-
-    private boolean atLeastOneBlockOpen(boolean[] closedBlock){
-        for(int i = 0; i < closedBlock.length; i++){
-            if(!closedBlock[i]) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private void mergeDocumentIndexes() throws IOException {
