@@ -1,5 +1,6 @@
 package it.unipi;
 
+import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
 import java.io.BufferedWriter;
@@ -221,16 +222,18 @@ public class LexiconTerm {
         ArrayList<Integer> docIdsSkipPointers = new ArrayList<>();
         ArrayList<Integer> frequenciesSkipPointers = new ArrayList<>();
         // TODO 1024 is a constant
-        if ((numSkipBlocks = (int) Math.floor(documentFrequency / 1024.0)) > 0) {
+        if ((numSkipBlocks = (int) Math.floor(documentFrequency / (double) Constants.NUM_POSTINGS_PER_BLOCK)) > 0) {
             byte[] encodedDocIDsBlock;
             byte[] encodedFrequenciesBlock;
             for (int i = 0; i < numSkipBlocks; i++) {
-                int docId = postingListDocIds.get(1024 * (i + 1) - 1);
-                int frequency = postingListFrequencies.get(1024 * (i + 1) - 1);
+                // First element of the block
+                int docId = postingListDocIds.get(Constants.NUM_POSTINGS_PER_BLOCK * (i + 1));
+                int frequency = postingListFrequencies.get(Constants.NUM_POSTINGS_PER_BLOCK * (i + 1));
                 docIdsSkipPointers.add(docId);
                 frequenciesSkipPointers.add(frequency);
-                encodedDocIDsBlock = Utils.encode(this.getPostingListDocIds().subList((i * 1024) , ((i + 1) * 1024) - 1));
-                encodedFrequenciesBlock = Utils.encode(this.getPostingListFrequencies().subList((i * 1024), ((i + 1) * 1024) - 1));
+                // from is inclusive, to is exclusive
+                encodedDocIDsBlock = Utils.encode(this.getPostingListDocIds().subList((i * Constants.NUM_POSTINGS_PER_BLOCK) , ((i + 1) * Constants.NUM_POSTINGS_PER_BLOCK)));
+                encodedFrequenciesBlock = Utils.encode(this.getPostingListFrequencies().subList((i * Constants.NUM_POSTINGS_PER_BLOCK), ((i + 1) * Constants.NUM_POSTINGS_PER_BLOCK)));
                 int docIdOffset = encodedDocIDsBlock.length;
                 int frequencyOffset = encodedFrequenciesBlock.length;
                 docIdsSkipPointers.add(docIdOffset);

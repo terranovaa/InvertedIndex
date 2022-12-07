@@ -28,6 +28,8 @@ public final class Constants {
     public static final int DOCUMENT_ENTRY_SIZE = 128;
     //TODO how many terms do we have to cache?
     public static final int TERMS_TO_CACHE_DURING_MERGE = 10;
+    // todo
+    public static final int NUM_POSTINGS_PER_BLOCK = 1024;
 
     private Constants() {
     }
