@@ -18,11 +18,15 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 public class Indexer {
+
+    //TODO: Collection statistics
 
     // current doc id
     private int currentDocId = 0;
@@ -73,8 +77,10 @@ public class Indexer {
                 if (currentDocId % 100000 == 0)
                     System.out.println(currentDocId);
 
-                String docNo = line.substring(0, line.indexOf("\t"));
-                String document = line.substring(line.indexOf("\t") + 1);
+                String[] lines = line.split("\t", 2);
+
+                String docNo = lines[0];
+                String document = lines[1];
 
                 // check empty page
                 if(document.length()==0)
@@ -86,12 +92,17 @@ public class Indexer {
                 String[] tokens = tokenize(document);
                 for (String token: tokens){
                     //stop word removal & stemming
-                    if(stopWords.size() != 0 && stopWords.contains(token)){
+                    if(stopWords.contains(token)){
                         //if the token is a stop word don't consider it
                         continue;
                     }
-                    if(stemmer != null)
-                        token = (String) stemmer.stem(token);
+
+                    token = (String) stemmer.stem(token);
+
+                    if (token.length() > Constants.MAX_TERM_LEN) {
+                        continue;
+                    }
+
                     //check if the token is already in the lexicon, if not create new entry
                     LexiconTerm lexiconEntry;
                     if ((lexiconEntry = lexicon.get(token)) == null){
@@ -102,15 +113,21 @@ public class Indexer {
                 }
 
                 // DEBUG
+                /*
                 if(currentDocId > 100000){
                     writeToDisk();
                     lexicon.clear();
                     documentTable.clear();
                     break;
                 }
+                 */
 
                 currentDocId++;
             }
+
+            writeToDisk();
+            lexicon.clear();
+            documentTable.clear();
         }
     }
 
@@ -184,7 +201,7 @@ public class Indexer {
     private String[] tokenize(String document){
         document = document.toLowerCase();
         //remove punctuation and strange characters
-        document = document.replaceAll("[^\\w\\s]", " ");
+        document = document.replaceAll("[^A-Za-z0-9\\s]", " ");
         // handle lower case in order to be the same thing
         //split in tokens
         // TODO: or \\s+
@@ -458,7 +475,6 @@ public class Indexer {
         } catch (IOException ioe){
             ioe.printStackTrace();
         }
-        //TODO skip pointers if the sum of the doc frequencies is > 1024
     }
 
     public void mergeBlocksTextual(){

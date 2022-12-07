@@ -2,6 +2,7 @@ package it.unipi;
 
 import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
+import opennlp.tools.parser.Cons;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -19,8 +20,6 @@ public class LexiconTerm {
     //number of total occurrences of the term
     private int collectionFrequency;
     //posting_list of the term during indexing
-    private final ArrayList<Posting> postingList = new ArrayList<>();
-    //useful for checking if a docid already belongs to the posting
     private final ArrayList<Integer> postingListDocIds = new ArrayList<>();
     private final ArrayList<Integer> postingListFrequencies = new ArrayList<>();
     private int lastDocIdInserted;
@@ -86,10 +85,6 @@ public class LexiconTerm {
         this.collectionFrequency = collectionFrequency;
     }
 
-    public ArrayList<Posting> getPostingList() {
-        return postingList;
-    }
-
     public int getLastDocIdInserted() {
         return lastDocIdInserted;
     }
@@ -115,16 +110,13 @@ public class LexiconTerm {
             //first occurrence in current document
             documentFrequency++;
             lastDocIdInserted = docID;
-            postingList.add(new Posting(docID, 1));
             postingListDocIds.add(docID);
             postingListFrequencies.add(1);
         }
         else{
             //additional occurrence for the previous document
-            Posting docPosting = postingList.get(postingList.size() - 1);
-            docPosting.increaseFrequency();
-            Integer frequency = postingListFrequencies.get(postingList.size() - 1);
-            postingListFrequencies.set(postingList.size() - 1, frequency + 1);
+            Integer frequency = postingListFrequencies.get(postingListFrequencies.size() - 1);
+            postingListFrequencies.set(postingListFrequencies.size() - 1, frequency + 1);
         }
     }
 
@@ -137,7 +129,6 @@ public class LexiconTerm {
     }
 
     public void addPosting(int docID, int frequency){
-        postingList.add(new Posting(docID, frequency));
         postingListDocIds.add(docID);
         postingListFrequencies.add(frequency);
     }
@@ -151,17 +142,15 @@ public class LexiconTerm {
                 " | fOffset: " + frequenciesOffset +
                 " | dSize: " + docIdsSize +
                 " | fSize: " + frequenciesSize);
-        for(Posting posting: postingList){
-            System.out.print("[" + "docID: " + posting.getDocID() + " | freq: " + posting.getFrequency() + "] ");
+        for(int i = 0; i < postingListDocIds.size(); i++){
+            System.out.print("[" + "docID: " + postingListDocIds.get(i) + " | freq: " + postingListFrequencies.get(i) + "] ");
         }
         System.out.println("\n------------------------------");
     }
 
      byte[] serializeBinary() {
 
-        final int LEXICON_ENTRY_SIZE = 144;
-
-        byte[] lexiconEntry = new byte[LEXICON_ENTRY_SIZE];
+        byte[] lexiconEntry = new byte[Constants.LEXICON_ENTRY_SIZE];
         //variable number of bytes
         byte[] entryTerm = term.getBytes(StandardCharsets.UTF_8);
         //fixed number of bytes, 4 for each integer
@@ -171,16 +160,20 @@ public class LexiconTerm {
         byte[] entryFrequenciesOffset = Utils.intToByteArray(frequenciesOffset);
         byte[] entryDocIDSize = Utils.intToByteArray(docIdsSize);
         byte[] entryFrequenciesSize = Utils.intToByteArray(frequenciesSize);
-        //fill the first part of the buffer with the utf-8 representation of the term, leave the rest to 0
-        System.arraycopy(entryTerm, 0, lexiconEntry, 0, entryTerm.length);
-        //fill the last part of the buffer with statistics and offsets
-        System.arraycopy(entryDf, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 24, 4);
-        System.arraycopy(entryCf, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 20, 4);
-        System.arraycopy(entryDocIDOffset, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 16, 4);
-        System.arraycopy(entryFrequenciesOffset, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 12, 4);
-        System.arraycopy(entryDocIDSize, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 8, 4);
-        System.arraycopy(entryFrequenciesSize, 0, lexiconEntry, LEXICON_ENTRY_SIZE - 4, 4);
-        return lexiconEntry;
+        try {
+            //fill the first part of the buffer with the utf-8 representation of the term, leave the rest to 0
+            System.arraycopy(entryTerm, 0, lexiconEntry, 0, entryTerm.length);
+            //fill the last part of the buffer with statistics and offsets
+            System.arraycopy(entryDf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 24, 4);
+            System.arraycopy(entryCf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 20, 4);
+            System.arraycopy(entryDocIDOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 16, 4);
+            System.arraycopy(entryFrequenciesOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 12, 4);
+            System.arraycopy(entryDocIDSize, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 8, 4);
+            System.arraycopy(entryFrequenciesSize, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 4, 4);
+        } catch (ArrayIndexOutOfBoundsException e) {
+            e.printStackTrace();
+        }
+         return lexiconEntry;
     }
 
     public String[] serializeTextual() {
@@ -193,7 +186,6 @@ public class LexiconTerm {
 
     //decode a disk-based array of bytes representing a lexicon entry in a LexiconTerm object
      void deserializeBinary(byte[] buffer) {
-        final int LEXICON_ENTRY_SIZE = 144;
         //to decode the term, detect the position of the first byte equal 0
         int endOfString = 0;
         while(buffer[endOfString] != 0){
@@ -202,12 +194,12 @@ public class LexiconTerm {
         //parse only the first part of the buffer until the first byte equal 0
         term = new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
         //decode the rest of the buffer
-        documentFrequency = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 24);
-        collectionFrequency = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 20);
-        docIdsOffset = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 16);
-        frequenciesOffset = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 12);
-        docIdsSize = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 8);
-        frequenciesSize = Utils.byteArrayToInt(buffer, LEXICON_ENTRY_SIZE - 4);
+        documentFrequency = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 24);
+        collectionFrequency = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 20);
+        docIdsOffset = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 16);
+        frequenciesOffset = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 12);
+        docIdsSize = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 8);
+        frequenciesSize = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 4);
     }
 
     void deserializeTextual(String buffer) {
@@ -221,8 +213,7 @@ public class LexiconTerm {
         int numSkipBlocks;
         ArrayList<Integer> docIdsSkipPointers = new ArrayList<>();
         ArrayList<Integer> frequenciesSkipPointers = new ArrayList<>();
-        // TODO 1024 is a constant
-        if ((numSkipBlocks = (int) Math.floor(documentFrequency / (double) Constants.NUM_POSTINGS_PER_BLOCK)) > 0) {
+        if ((numSkipBlocks = (int) Math.floor((documentFrequency - 1) / (double) Constants.NUM_POSTINGS_PER_BLOCK)) > 0) {
             byte[] encodedDocIDsBlock;
             byte[] encodedFrequenciesBlock;
             for (int i = 0; i < numSkipBlocks; i++) {

@@ -30,6 +30,7 @@ public final class Constants {
     public static final int TERMS_TO_CACHE_DURING_MERGE = 10;
     // todo
     public static final int NUM_POSTINGS_PER_BLOCK = 1024;
+    public static final int MAX_TERM_LEN = 30;
 
     private Constants() {
     }

@@ -77,7 +77,7 @@ public class Document {
         list.add(docNo);
         list.add(Integer.toString(docId));
         list.add(Integer.toString(length));
-        return list.toArray(new String[list.size()]);
+        return list.toArray(new String[0]);
     }
 
 
