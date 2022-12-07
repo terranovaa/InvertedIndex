@@ -187,7 +187,7 @@ public class LexiconTerm {
         list.add(term);
         list.add(Integer.toString(documentFrequency));
         list.add(Integer.toString(collectionFrequency));
-        return list.toArray(new String[list.size()]);
+        return list.toArray(new String[0]);
     }
 
     //decode a disk-based array of bytes representing a lexicon entry in a LexiconTerm object
@@ -217,17 +217,48 @@ public class LexiconTerm {
     }
 
     void writeToDiskBinary(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream) throws IOException {
+        int numSkipBlocks;
+        ArrayList<Integer> docIdsSkipPointers = new ArrayList<>();
+        ArrayList<Integer> frequenciesSkipPointers = new ArrayList<>();
+        // TODO 1024 is a constant
+        if ((numSkipBlocks = (int) Math.floor(documentFrequency / 1024.0)) > 0) {
+            byte[] encodedDocIDsBlock;
+            byte[] encodedFrequenciesBlock;
+            for (int i = 0; i < numSkipBlocks; i++) {
+                int docId = postingListDocIds.get(1024 * (i + 1) - 1);
+                int frequency = postingListFrequencies.get(1024 * (i + 1) - 1);
+                docIdsSkipPointers.add(docId);
+                frequenciesSkipPointers.add(frequency);
+                encodedDocIDsBlock = Utils.encode(this.getPostingListDocIds().subList((i * 1024) , ((i + 1) * 1024) - 1));
+                encodedFrequenciesBlock = Utils.encode(this.getPostingListFrequencies().subList((i * 1024), ((i + 1) * 1024) - 1));
+                int docIdOffset = encodedDocIDsBlock.length;
+                int frequencyOffset = encodedFrequenciesBlock.length;
+                docIdsSkipPointers.add(docIdOffset);
+                frequenciesSkipPointers.add(frequencyOffset);
+            }
+        }
         this.setDocIdsOffset(docIDsFileOffset);
         this.setFrequenciesOffset(frequenciesFileOffset);
         // docIDs
         byte[] encodedDocIDs = Utils.encode(this.getPostingListDocIds());
+        if (docIdsSkipPointers.size() > 0) {
+            byte[] encodedDocIdsSkipPointers = Utils.encode(docIdsSkipPointers);
+            docIDsFileOffset += encodedDocIdsSkipPointers.length;
+            docIdsSize += encodedDocIdsSkipPointers.length;
+        }
         docIDsFileOffset += encodedDocIDs.length;
-        this.setDocIdsSize(encodedDocIDs.length);
+        docIdsSize += encodedDocIDs.length;
         docIDStream.write(encodedDocIDs);
         // frequencies
         byte[] encodedFrequencies = Utils.encode(this.getPostingListFrequencies());
-        frequenciesFileOffset += encodedFrequencies.length;
-        this.setFrequenciesSize(encodedFrequencies.length);
+        if (frequenciesSkipPointers.size() > 0) {
+            byte[] encodedFrequenciesSkipPointers = Utils.encode(frequenciesSkipPointers);
+            frequenciesFileOffset += encodedFrequenciesSkipPointers.length;
+            frequenciesSize += encodedFrequenciesSkipPointers.length;
+            frequenciesStream.write(encodedFrequenciesSkipPointers);
+        }
+        frequenciesFileOffset += encodedFrequencies.length ;
+        frequenciesSize += encodedFrequencies.length;
         frequenciesStream.write(encodedFrequencies);
         // lexicon
         lexiconStream.write(this.serializeBinary());

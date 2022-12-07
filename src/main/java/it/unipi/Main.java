@@ -14,7 +14,7 @@ public class Main {
             }
             indexer = new Indexer(args[0]);
         } else // default case binary
-            indexer = new Indexer(Constants.TXT_FORMAT);
+            indexer = new Indexer(Constants.DAT_FORMAT);
         long start = System.currentTimeMillis();
         indexer.indexCollection();
         long end = System.currentTimeMillis();

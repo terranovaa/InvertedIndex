@@ -102,7 +102,7 @@ public class Indexer {
                 }
 
                 // DEBUG
-                if(currentDocId > 1000000){
+                if(currentDocId > 100000){
                     writeToDisk();
                     lexicon.clear();
                     documentTable.clear();
@@ -188,13 +188,13 @@ public class Indexer {
         // handle lower case in order to be the same thing
         //split in tokens
         // TODO: or \\s+
-        return document.split("\\s");
+        return document.split(" ");
     }
 
     private void writeToDisk(){
-        if(FILE_EXTENSION == Constants.DAT_FORMAT)
+        if(Objects.equals(FILE_EXTENSION, Constants.DAT_FORMAT))
             writeToDiskBinary();
-        else if(FILE_EXTENSION == Constants.TXT_FORMAT)
+        else if(Objects.equals(FILE_EXTENSION, Constants.TXT_FORMAT))
             writeToDiskTextual();
     }
 
@@ -326,9 +326,9 @@ public class Indexer {
     }
 
     public void mergeBlocks(){
-        if(FILE_EXTENSION == Constants.DAT_FORMAT)
+        if(Objects.equals(FILE_EXTENSION, Constants.DAT_FORMAT))
             mergeBlocksBinary();
-        else if(FILE_EXTENSION == Constants.TXT_FORMAT)
+        else if(Objects.equals(FILE_EXTENSION, Constants.TXT_FORMAT))
             mergeBlocksTextual();
     }
 
@@ -358,7 +358,7 @@ public class Indexer {
                 nextBlock++;
             }
 
-            //cache in memory of the first terms in the lexicon of each block
+            //cache in memory of the first N terms in the lexicon of each block
             byte[][] buffers = new byte[numberOfBlocks][Constants.LEXICON_ENTRY_SIZE * Constants.TERMS_TO_CACHE_DURING_MERGE];
             byte[][] nextLexiconEntry = new byte[numberOfBlocks][Constants.LEXICON_ENTRY_SIZE];
             LexiconTerm[] nextTerm = new LexiconTerm[numberOfBlocks];
