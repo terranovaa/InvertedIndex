@@ -2,27 +2,27 @@ package it.unipi;
 
 import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
-import opennlp.tools.parser.Cons;
+import opennlp.tools.stemmer.PorterStemmer;
 import opennlp.tools.stemmer.snowball.SnowballStemmer;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
+import javax.sound.sampled.Port;
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
 
-import java.lang.reflect.Array;
 import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
+
+import org.tartarus.snowball.ext.englishStemmer;
 
 public class Indexer {
 
@@ -36,7 +36,13 @@ public class Indexer {
     private final TreeMap<String, LexiconTerm> lexicon = new TreeMap<>();
     private final HashMap<Integer, Document> documentTable = new HashMap<>();
     // TODO: use language detector to determine language of a word and give the support to many languages?
+    // TODO choose between different Stemmers
+    // SnowballStemmer slowest
+    // PorterStemmer fastest but older version of stemming
+    // englishStemmer same as SnowballStemmer but faster
     private final SnowballStemmer stemmer;
+    private final PorterStemmer porterStemmer;
+    private final englishStemmer englishStemmer = new englishStemmer();
     // TODO: same here?
     private final HashSet<String> stopWords = new HashSet<>();
     MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
@@ -45,6 +51,7 @@ public class Indexer {
     public Indexer(String fileExtension) throws IOException{
         stopWords.addAll(Files.readAllLines(Paths.get(Constants.STOPWORDS_PATH)));
         stemmer = new SnowballStemmer(SnowballStemmer.ALGORITHM.ENGLISH);
+        porterStemmer = new PorterStemmer();
         FILE_EXTENSION = fileExtension;
     }
 
@@ -77,10 +84,8 @@ public class Indexer {
                 if (currentDocId % 100000 == 0)
                     System.out.println(currentDocId);
 
-                String[] lines = line.split("\t", 2);
-
-                String docNo = lines[0];
-                String document = lines[1];
+                String docNo = line.substring(0, line.indexOf("\t"));
+                String document = line.substring(line.indexOf("\t") + 1);
 
                 // check empty page
                 if(document.length()==0)
@@ -97,7 +102,12 @@ public class Indexer {
                         continue;
                     }
 
-                    token = (String) stemmer.stem(token);
+                    //String token = porterStemmer.stem(token);
+                    //String token2 = (String) stemmer.stem(token);
+                    englishStemmer.setCurrent(token);
+                    if (englishStemmer.stem()) {
+                        token = englishStemmer.getCurrent();
+                    }
 
                     if (token.length() > Constants.MAX_TERM_LEN) {
                         continue;
@@ -113,13 +123,14 @@ public class Indexer {
                 }
 
                 // DEBUG
-                /*
-                if(currentDocId > 100000){
+
+                /*if(currentDocId > 100000){
                     writeToDisk();
                     lexicon.clear();
                     documentTable.clear();
                     break;
                 }
+
                  */
 
                 currentDocId++;
@@ -157,25 +168,6 @@ public class Indexer {
             inputChannel.close();
             fis.close();
         }
-        /*
-        ArrayList<InputStream> documentInputIndexStreams = new ArrayList<>();
-        String documentIndexFile = "./resources/document_index/document_index.dat";
-        while(nextBlock < numberOfBlocks){
-            documentInputIndexStreams.add(new BufferedInputStream(new FileInputStream("./resources/document_index/document_index_" + nextBlock + ".dat")));
-            nextBlock++;
-        }
-        byte[] array;
-        try (OutputStream documentOutputIndexStream = new BufferedOutputStream(new FileOutputStream(documentIndexFile))){
-            for(int i = 0; i < numberOfBlocks; ++i) {
-                array = documentInputIndexStreams.get(i).readNBytes(DOCUMENT_ENTRY_SIZE * DOCS_TO_CACHE_DURING_MERGE);
-                while(array != null) {
-                    documentOutputIndexStream.write(array);
-                    array = documentInputIndexStreams.get(i).readNBytes(DOCUMENT_ENTRY_SIZE * DOCS_TO_CACHE_DURING_MERGE);
-                }
-            }
-        }
-
-         */
     }
 
     private boolean memoryFull() {
@@ -201,10 +193,8 @@ public class Indexer {
     private String[] tokenize(String document){
         document = document.toLowerCase();
         //remove punctuation and strange characters
-        document = document.replaceAll("[^A-Za-z0-9\\s]", " ");
-        // handle lower case in order to be the same thing
+        document = document.replaceAll("[^a-z0-9\\s]", " ");
         //split in tokens
-        // TODO: or \\s+
         return document.split(" ");
     }
 
