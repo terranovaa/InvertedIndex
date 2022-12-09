@@ -2,6 +2,7 @@ package it.unipi.utils;
 
 public final class Constants {
 
+    public static final String[] DIRECTORIES_PATHS = new String[]{"./collection","./resources", "./resources/document_table", "./resources/inverted_index/", "./resources/lexicon/" };
     private static final String RESOURCES_PATH = "./resources/";
     private static final String INVERTED_INDEX_PATH = "inverted_index/";
 
@@ -32,6 +33,4 @@ public final class Constants {
     public static final int NUM_POSTINGS_PER_BLOCK = 1024;
     public static final int MAX_TERM_LEN = 30;
 
-    private Constants() {
-    }
 }

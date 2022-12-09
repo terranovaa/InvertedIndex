@@ -1,12 +1,13 @@
 package it.unipi;
 
 import it.unipi.utils.Constants;
-
 import java.io.IOException;
 
+import static it.unipi.utils.Utils.setupEnvironment;
+
 public class Main {
-    // TODO: dinamically create folders needed for the environment at startup, i.e. resources/document_table, etc.
     public static void main(String[] args) throws IOException {
+        setupEnvironment();
         Indexer indexer;
         if(args.length == 1) {
             if (!args[0].equals(Constants.DAT_FORMAT) && !args[0].equals(Constants.TXT_FORMAT)) {

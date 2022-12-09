@@ -1,6 +1,7 @@
 package it.unipi;
 
 import it.unipi.utils.Constants;
+
 import it.unipi.utils.Utils;
 import opennlp.tools.stemmer.PorterStemmer;
 import opennlp.tools.stemmer.snowball.SnowballStemmer;
@@ -8,7 +9,6 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
-import javax.sound.sampled.Port;
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
@@ -24,10 +24,12 @@ import java.util.regex.Pattern;
 
 import org.tartarus.snowball.ext.englishStemmer;
 
+import static it.unipi.utils.Utils.validDocument;
+import static it.unipi.utils.Utils.validToken;
+
 public class Indexer {
 
     //TODO: Collection statistics
-
     // current doc id
     private int currentDocId = 0;
     // useful for giving different names to partial files
@@ -35,60 +37,57 @@ public class Indexer {
     // Value needs to be changed
     private final TreeMap<String, LexiconTerm> lexicon = new TreeMap<>();
     private final HashMap<Integer, Document> documentTable = new HashMap<>();
-    // TODO: use language detector to determine language of a word and give the support to many languages?
     // TODO choose between different Stemmers
     // SnowballStemmer slowest
     // PorterStemmer fastest but older version of stemming
     // englishStemmer same as SnowballStemmer but faster
-    private final SnowballStemmer stemmer;
-    private final PorterStemmer porterStemmer;
+    //private final SnowballStemmer stemmer;
+    //private final PorterStemmer porterStemmer;
     private final englishStemmer englishStemmer = new englishStemmer();
-    // TODO: same here?
     private final HashSet<String> stopWords = new HashSet<>();
     MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
     private final String FILE_EXTENSION;
+    private final double MEMORY_FULL_THRESHOLD_PERCENTAGE = 0.75;
+    private final double MEMORY_ENOUGH_THRESHOLD_PERCENTAGE = 0.25;
 
     public Indexer(String fileExtension) throws IOException{
         stopWords.addAll(Files.readAllLines(Paths.get(Constants.STOPWORDS_PATH)));
-        stemmer = new SnowballStemmer(SnowballStemmer.ALGORITHM.ENGLISH);
-        porterStemmer = new PorterStemmer();
+        //stemmer = new SnowballStemmer(SnowballStemmer.ALGORITHM.ENGLISH);
+        //porterStemmer = new PorterStemmer();
         FILE_EXTENSION = fileExtension;
     }
 
     public void indexCollection() throws IOException {
-
         File file = new File(Constants.COLLECTION_PATH);
         final TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(file)));
         TarArchiveEntry tarArchiveEntry = tarArchiveInputStream.getNextTarEntry();
         BufferedReader bufferedReader;
-        if (tarArchiveEntry != null) {
-            // UTF8 or ASCII?
-            // it throws MalformedInputException
+        //long start = System.currentTimeMillis();
+        if (tarArchiveEntry != null) { //TODO: UTF8 or ASCII?
+            // it uses MalformedInputException internally and replace the malformed character as default operation
             bufferedReader = new BufferedReader(new InputStreamReader(tarArchiveInputStream, StandardCharsets.US_ASCII));
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 // check if memory available
-                if(memoryFull()) {
-                    writeToDisk();
-                    currentBlock++;
-                    lexicon.clear();
-                    documentTable.clear();
-                    // use a while loop since we don't know when the garbage collector will come in action
-                    System.out.println("Start asking the gc to come in action until we reach 25%..");
-                    while(memoryEnough()) {
-                        System.gc();
-                    }
-                    System.out.println("Enough memory now..");
-                }
-                // DEBUG
-                if (currentDocId % 100000 == 0)
+                // TODO: check if necessary
+                if (currentDocId % 100000 == 0) {
                     System.out.println(currentDocId);
+                    if (checkMemory(MEMORY_FULL_THRESHOLD_PERCENTAGE)) {
+                        writeToDisk();
+                        currentBlock++;
+                        lexicon.clear();
+                        documentTable.clear();
+                        System.out.println("Start asking the gc to come in action until we reach " + MEMORY_ENOUGH_THRESHOLD_PERCENTAGE * 100 + "%..");
+                        while (checkMemory(MEMORY_ENOUGH_THRESHOLD_PERCENTAGE))  // use a while loop since we don't know when the garbage collector will come in action
+                            System.gc();
+                        System.out.println("Enough memory now..");
+                    }
+                }
 
                 String docNo = line.substring(0, line.indexOf("\t"));
                 String document = line.substring(line.indexOf("\t") + 1);
 
-                // check empty page
-                if(document.length()==0)
+                if(!validDocument(document))
                     continue;
 
                 // add element to the document index
@@ -96,21 +95,14 @@ public class Indexer {
 
                 String[] tokens = tokenize(document);
                 for (String token: tokens){
-                    //stop word removal & stemming
-                    if(stopWords.contains(token)){
-                        //if the token is a stop word don't consider it
+                    if(!validToken(token, stopWords))
                         continue;
-                    }
 
                     //String token = porterStemmer.stem(token);
                     //String token2 = (String) stemmer.stem(token);
                     englishStemmer.setCurrent(token);
                     if (englishStemmer.stem()) {
                         token = englishStemmer.getCurrent();
-                    }
-
-                    if (token.length() > Constants.MAX_TERM_LEN) {
-                        continue;
                     }
 
                     //check if the token is already in the lexicon, if not create new entry
@@ -123,65 +115,22 @@ public class Indexer {
                 }
 
                 // DEBUG
-
-                /*if(currentDocId > 100000){
+                if(currentDocId > 10000000){
                     writeToDisk();
                     lexicon.clear();
+                    System.out.println(documentTable.size());
                     documentTable.clear();
                     break;
                 }
-
-                 */
-
                 currentDocId++;
             }
-
             writeToDisk();
             lexicon.clear();
             documentTable.clear();
         }
     }
 
-    private void mergePartialDocumentTables() throws IOException {
-
-        int nextBlock=0;
-        int numberOfBlocks=currentBlock+1;
-        String[] documentTableInputFiles = new String[currentBlock+1];
-        while(nextBlock < numberOfBlocks){
-            documentTableInputFiles[nextBlock] = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + nextBlock + FILE_EXTENSION;
-            nextBlock++;
-        }
-        String documentTableOutputFile = Constants.DOCUMENT_TABLE_FILE_PATH + FILE_EXTENSION;
-
-        FileOutputStream fos = new FileOutputStream(documentTableOutputFile);
-        WritableByteChannel targetChannel = fos.getChannel();
-
-        for (String documentTableInputFile : documentTableInputFiles) {
-            //Get channel for input files
-            FileInputStream fis = new FileInputStream(documentTableInputFile);
-            FileChannel inputChannel = fis.getChannel();
-
-            //Transfer data from input channel to output channel
-            inputChannel.transferTo(0, inputChannel.size(), targetChannel);
-
-            //close the input channel
-            inputChannel.close();
-            fis.close();
-        }
-    }
-
-    private boolean memoryFull() {
-        double MEMORY_THRESHOLD_PERCENTAGE = 0.75;
-        MemoryUsage memoryUsage = memoryMXBean.getHeapMemoryUsage();
-        long usedHeap = memoryUsage.getUsed();
-        long maxHeap = memoryUsage.getMax();
-        // threshold percentage of the maxMemory allocated, under which we consider the memory as not free anymore
-        double heapThreshold = MEMORY_THRESHOLD_PERCENTAGE * maxHeap;
-        return usedHeap >= heapThreshold;
-    }
-
-    private boolean memoryEnough() {
-        double MEMORY_THRESHOLD_PERCENTAGE = 0.25;
+    private boolean checkMemory(double MEMORY_THRESHOLD_PERCENTAGE) {
         MemoryUsage memoryUsage = memoryMXBean.getHeapMemoryUsage();
         long usedHeap = memoryUsage.getUsed();
         long maxHeap = memoryUsage.getMax();
@@ -191,7 +140,9 @@ public class Indexer {
     }
 
     private String[] tokenize(String document){
+        // normalization
         document = document.toLowerCase();
+        // TODO: more complex tokenization? Like BPE?
         //remove punctuation and strange characters
         document = document.replaceAll("[^a-z0-9\\s]", " ");
         //split in tokens
@@ -261,10 +212,6 @@ public class Indexer {
         String lexiconFile = Constants.PARTIAL_LEXICON_FILE_PATH + currentBlock + FILE_EXTENSION;
         String documentTableFile = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + currentBlock + FILE_EXTENSION;
 
-        //int docIDsFileOffset = 0;
-        //int frequenciesFileOffset = 0;
-        //int length;
-
         long start = System.currentTimeMillis();
         try (BufferedWriter postingsDocIdsStream = new BufferedWriter(new FileWriter(postingsDocIdsFile));
              BufferedWriter postingsFrequenciesStream = new BufferedWriter(new FileWriter(postingsFrequenciesFile));
@@ -273,54 +220,31 @@ public class Indexer {
         ) {
             for (Map.Entry<String, LexiconTerm> entry : lexicon.entrySet()) {
                 LexiconTerm lexiconTerm = entry.getValue();
-                //lexiconTerm.setDocIdsOffset(docIDsFileOffset);
-                //lexiconTerm.setFrequenciesOffset(frequenciesFileOffset);
-                // docIDs
+                //docIDs
                 List<Integer> docIDs = lexiconTerm.getPostingListDocIds();
-                //length = 0;
-                //+1 since we use another byte for the comma symbol ","
-                //for(Integer docID: docIDs)
-                //    length += docID.toString().length()+1;
-                // the last element is not going to have the comma symbol after
-                //length -= 1;
-                //docIDsFileOffset += length;
-                //lexiconTerm.setDocIdsSize(length);
                 for(int i = 0; i < docIDs.size(); ++i)
                     if(i != docIDs.size()-1)
                         postingsDocIdsStream.write(docIDs.get(i).toString()+",");
                     else postingsDocIdsStream.write(docIDs.get(i).toString()+"\n");
-
                 // frequencies
                 List<Integer> frequencies = lexiconTerm.getPostingListFrequencies();
-                //length = 0;
-                // +1 since we use another byte for the comma symbol ","
-                //for(Integer frequency: frequencies)
-                 //   length += frequency.toString().length()+1;
-                // the last element is not going to have the comma symbol "," after
-                //length -= 1;
-                //frequenciesFileOffset += length;
-                //lexiconTerm.setFrequenciesSize(length);
-
                 for(int i = 0; i < frequencies.size(); ++i)
                     if(i != docIDs.size()-1)
                         postingsFrequenciesStream.write(frequencies.get(i).toString()+",");
                     else postingsFrequenciesStream.write(frequencies.get(i).toString()+"\n");
-
-                //lexicon term
+                //lexicon terms
                 String[] lexiconEntry = lexiconTerm.serializeTextual();
                 for(int i = 0; i < lexiconEntry.length; ++i)
                     if(i != lexiconEntry.length-1)
                         lexiconStream.write(lexiconEntry[i]+",");
-                    else lexiconStream.write(lexiconEntry[i]+"\n");
-                    // since we don't have the offset information here, we use \n as delimiter
+                    else lexiconStream.write(lexiconEntry[i]+"\n"); // since we don't have the offset information here, we use \n as delimiter
             }
             for (Map.Entry<Integer, Document> doc : documentTable.entrySet()) {
                 String[] documentTableEntry = doc.getValue().serializeTextual();
                 for(int i = 0; i < documentTableEntry.length; ++i)
                     if(i != documentTableEntry.length-1)
                         documentTableStream.write(documentTableEntry[i]+",");
-                    else documentTableStream.write(documentTableEntry[i]+"\n");
-                    // since we don't have the offset information here, we use \n as delimiter
+                    else documentTableStream.write(documentTableEntry[i]+"\n"); // since we don't have the offset information here, we use \n as delimiter
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -340,9 +264,7 @@ public class Indexer {
     }
 
     public void mergeBlocksBinary(){
-
         long start = System.currentTimeMillis();
-
         String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION;
         String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION;
         String lexiconFile = Constants.LEXICON_FILE_PATH + FILE_EXTENSION;
@@ -391,11 +313,8 @@ public class Indexer {
             }
 
             while(activeBlocks.size() > 0){
-
                 ArrayList<Integer> lexiconsToMerge = new ArrayList<>();
-
                 minTerm = null;
-
                 for(Integer blockIndex: activeBlocks){
                     if (minTerm == null || nextTerm[blockIndex].getTerm().compareTo(minTerm) < 0) {
                         minTerm = nextTerm[blockIndex].getTerm();
@@ -434,14 +353,15 @@ public class Indexer {
                     //update pointers for every block
                     pointers[blockIndex] += Constants.LEXICON_ENTRY_SIZE;
                     if(pointers[blockIndex] >= bytesRead[blockIndex]){
+                        // surely the last block
                         if (bytesRead[blockIndex] < Constants.LEXICON_ENTRY_SIZE * Constants.TERMS_TO_CACHE_DURING_MERGE){
                             //if before we read less than those bytes, the relative block is finished
                             //blockIndex is not the index of the arraylist but an Integer object
                             activeBlocks.remove(blockIndex);
-                        }
-                        else{
+                        } else {
                             //if all the in-memory buffer is consumed, refill it reading again from file
                             bytesRead[blockIndex] = lexiconStreams.get(blockIndex).readNBytes(buffers[blockIndex], 0, Constants.LEXICON_ENTRY_SIZE * Constants.TERMS_TO_CACHE_DURING_MERGE);
+                            // if it is now equal to 0, the block has a size exactly equal to a multiple of TERMS_TO_CACHE_DURING_MERGE * LEXICON_ENTRY_SIZE
                             if(bytesRead[blockIndex] == 0){
                                 activeBlocks.remove(blockIndex);
                             }
@@ -539,7 +459,6 @@ public class Indexer {
 
                 //create a new lexiconTerm object for the min term
                 LexiconTerm referenceLexiconTerm = new LexiconTerm(nextTerm[lexiconsToMerge.get(0)].getTerm());
-                //System.out.println("Merging term: " + referenceLexiconTerm.getTerm());
                 //merge everything
                 for (Integer blockIndex: lexiconsToMerge){
                     LexiconTerm nextBlockToMerge = nextTerm[blockIndex];
@@ -554,7 +473,6 @@ public class Indexer {
 
                     postingsFrequenciesStreams.get(blockIndex).useDelimiter(Pattern.compile("\n"));
                     String postingFrequencies = postingsFrequenciesStreams.get(blockIndex).next();
-                    //System.out.println(postingFrequencies);
                     ArrayList<Integer> docIDs = new ArrayList<>();
                     for(String docIDString: Arrays.asList(postingDocIDs.split(",")))
                         docIDs.add(Integer.parseInt(docIDString));
@@ -564,11 +482,9 @@ public class Indexer {
                         frequencies.add(Integer.parseInt(frequencyString));
 
 
-                    //System.out.println(frequencies);
                     //merge postings
                     for (Integer docID: docIDs){
                         Integer frequency = frequencies.remove(0);
-                        //System.out.println(frequency);
                         referenceLexiconTerm.addPosting(docID, frequency);
                     }
 
@@ -597,6 +513,33 @@ public class Indexer {
             System.out.println("Merged in " + (end - start) + " ms");
         } catch (IOException ioe){
             ioe.printStackTrace();
+        }
+    }
+
+    private void mergePartialDocumentTables() throws IOException {
+        int nextBlock=0;
+        int numberOfBlocks=currentBlock+1;
+        String[] documentTableInputFiles = new String[currentBlock+1];
+        while(nextBlock < numberOfBlocks){
+            documentTableInputFiles[nextBlock] = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + nextBlock + FILE_EXTENSION;
+            nextBlock++;
+        }
+        String documentTableOutputFile = Constants.DOCUMENT_TABLE_FILE_PATH + FILE_EXTENSION;
+
+        FileOutputStream fos = new FileOutputStream(documentTableOutputFile);
+        WritableByteChannel targetChannel = fos.getChannel();
+
+        for (String documentTableInputFile : documentTableInputFiles) {
+            //Get channel for input files
+            FileInputStream fis = new FileInputStream(documentTableInputFile);
+            FileChannel inputChannel = fis.getChannel();
+
+            //Transfer data from input channel to output channel
+            inputChannel.transferTo(0, inputChannel.size(), targetChannel);
+
+            //close the input channel
+            inputChannel.close();
+            fis.close();
         }
     }
 }

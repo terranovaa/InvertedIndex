@@ -1,11 +1,44 @@
 package it.unipi.utils;
 
+import java.io.IOException;
+import java.lang.instrument.Instrumentation;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 
 public final class Utils {
+
+
+
+    public static void setupEnvironment(){
+        try {
+            for(String directory: Constants.DIRECTORIES_PATHS)
+                Files.createDirectories(Paths.get(directory));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // TODO: Add logic, malformed lines?
+    public static boolean validDocument(String document){
+        // check empty page
+        if(document.length()==0)
+            return false;
+        return true;
+    }
+
+    public static boolean validToken(String token, HashSet<String> stopWords){
+        //stop word removal & stemming
+        if(stopWords.contains(token)) //if the token is a stop word don't consider it
+            return false;
+
+        if (token.length() > Constants.MAX_TERM_LEN)
+            return false;
+        return true;
+    }
 
     public static ArrayList<Byte> encodeNumber(int n) {
         int number = n;
