@@ -15,12 +15,10 @@ import java.lang.management.MemoryUsage;
 import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Pattern;
 
-import org.tartarus.snowball.ext.englishStemmer;
+
 
 import static it.unipi.utils.Utils.validDocument;
 import static it.unipi.utils.Utils.validToken;
@@ -41,18 +39,18 @@ public class Indexer {
     // englishStemmer same as SnowballStemmer but faster
     //private final SnowballStemmer stemmer;
     //private final PorterStemmer porterStemmer;
-    private final englishStemmer englishStemmer = new englishStemmer();
-    private final HashSet<String> stopWords = new HashSet<>();
+
     MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
     private final String FILE_EXTENSION;
     private final double MEMORY_FULL_THRESHOLD_PERCENTAGE = 0.75;
     private final double MEMORY_ENOUGH_THRESHOLD_PERCENTAGE = 0.25;
 
     public Indexer(String fileExtension) throws IOException{
-        stopWords.addAll(Files.readAllLines(Paths.get(Constants.STOPWORDS_PATH)));
+
         //stemmer = new SnowballStemmer(SnowballStemmer.ALGORITHM.ENGLISH);
         //porterStemmer = new PorterStemmer();
         FILE_EXTENSION = fileExtension;
+        System.out.println("Using "+ FILE_EXTENSION + " as file extension..");
     }
 
     public void indexCollection() throws IOException {
@@ -91,17 +89,11 @@ public class Indexer {
                 // add element to the document index
                 documentTable.put(currentDocId, new Document(currentDocId, docNo, document.length()));
 
-                String[] tokens = tokenize(document);
+                String[] tokens = Utils.tokenize(document);
                 for (String token: tokens){
-                    if(!validToken(token, stopWords))
+                    if(!validToken(token))
                         continue;
-
-                    //String token = porterStemmer.stem(token);
-                    //String token2 = (String) stemmer.stem(token);
-                    englishStemmer.setCurrent(token);
-                    if (englishStemmer.stem()) {
-                        token = englishStemmer.getCurrent();
-                    }
+                    token = Utils.stemming(token);
 
                     //check if the token is already in the lexicon, if not create new entry
                     LexiconTerm lexiconEntry;
@@ -113,15 +105,13 @@ public class Indexer {
                 }
 
                 // DEBUG
-                if(currentDocId > 1000000){
+                /*if(currentDocId > 1000000){
                     writeToDisk();
                     lexicon.clear();
                     System.out.println(documentTable.size());
                     documentTable.clear();
                     break;
-                }
-
-
+                }*/
                 currentDocId++;
             }
             writeToDisk();
@@ -139,20 +129,10 @@ public class Indexer {
         return usedHeap >= heapThreshold;
     }
 
-    private String[] tokenize(String document){
-        // normalization
-        document = document.toLowerCase();
-        // TODO: more complex tokenization? Like BPE?
-        //remove punctuation and strange characters
-        document = document.replaceAll("[^a-z0-9\\s]", " ");
-        //split in tokens
-        return document.split(" ");
-    }
-
     private void writeToDisk(){
-        if(Objects.equals(FILE_EXTENSION, Constants.DAT_FORMAT))
+        if(Objects.equals(FILE_EXTENSION.toLowerCase(), Constants.DAT_FORMAT))
             writeToDiskBinary();
-        else if(Objects.equals(FILE_EXTENSION, Constants.TXT_FORMAT))
+        else if(Objects.equals(FILE_EXTENSION.toLowerCase(), Constants.TXT_FORMAT))
             writeToDiskTextual();
     }
 
@@ -207,10 +187,11 @@ public class Indexer {
     }
 
     private void writeToDiskTextual(){
-        String postingsDocIdsFile = Constants.PARTIAL_POSTINGS_DOC_IDS_FILE_PATH + currentBlock + FILE_EXTENSION;
-        String postingsFrequenciesFile = Constants.PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH + currentBlock + FILE_EXTENSION;
-        String lexiconFile = Constants.PARTIAL_LEXICON_FILE_PATH + currentBlock + FILE_EXTENSION;
-        String documentTableFile = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + currentBlock + FILE_EXTENSION;
+        System.out.println("Writing to disk in textual format..");
+        String postingsDocIdsFile = Constants.PARTIAL_POSTINGS_DOC_IDS_FILE_PATH + currentBlock + FILE_EXTENSION.toLowerCase();
+        String postingsFrequenciesFile = Constants.PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH + currentBlock + FILE_EXTENSION.toLowerCase();
+        String lexiconFile = Constants.PARTIAL_LEXICON_FILE_PATH + currentBlock + FILE_EXTENSION.toLowerCase();
+        String documentTableFile = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + currentBlock + FILE_EXTENSION.toLowerCase();
 
         long start = System.currentTimeMillis();
         try (BufferedWriter postingsDocIdsStream = new BufferedWriter(new FileWriter(postingsDocIdsFile));
@@ -257,9 +238,9 @@ public class Indexer {
     }
 
     public void mergeBlocks(){
-        if(Objects.equals(FILE_EXTENSION, Constants.DAT_FORMAT))
+        if(Objects.equals(FILE_EXTENSION.toLowerCase(), Constants.DAT_FORMAT))
             mergeBlocksBinary();
-        else if(Objects.equals(FILE_EXTENSION, Constants.TXT_FORMAT))
+        else if(Objects.equals(FILE_EXTENSION.toLowerCase(), Constants.TXT_FORMAT))
             mergeBlocksTextual();
     }
 
@@ -363,9 +344,9 @@ public class Indexer {
 
         long start = System.currentTimeMillis();
 
-        String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION;
-        String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION;
-        String lexiconFile = Constants.LEXICON_FILE_PATH + FILE_EXTENSION;
+        String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION.toLowerCase();
+        String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION.toLowerCase();
+        String lexiconFile = Constants.LEXICON_FILE_PATH + FILE_EXTENSION.toLowerCase();
 
         try (BufferedWriter outputDocIdsStream = new BufferedWriter(new FileWriter(postingsDocIdsFile));
              BufferedWriter outputFrequenciesStream = new BufferedWriter(new FileWriter(postingsFrequenciesFile));
@@ -379,9 +360,9 @@ public class Indexer {
             ArrayList<Scanner> postingsDocIdsStreams = new ArrayList<>();
             ArrayList<Scanner> postingsFrequenciesStreams = new ArrayList<>();
             while(nextBlock < numberOfBlocks){
-                lexiconStreams.add(new Scanner(new File(Constants.PARTIAL_LEXICON_FILE_PATH + nextBlock + FILE_EXTENSION)));
-                postingsDocIdsStreams.add(new Scanner(new File(Constants.PARTIAL_POSTINGS_DOC_IDS_FILE_PATH + nextBlock + FILE_EXTENSION)));
-                postingsFrequenciesStreams.add(new Scanner(new File(Constants.PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH + nextBlock + FILE_EXTENSION)));
+                lexiconStreams.add(new Scanner(new File(Constants.PARTIAL_LEXICON_FILE_PATH + nextBlock + FILE_EXTENSION.toLowerCase())));
+                postingsDocIdsStreams.add(new Scanner(new File(Constants.PARTIAL_POSTINGS_DOC_IDS_FILE_PATH + nextBlock + FILE_EXTENSION.toLowerCase())));
+                postingsFrequenciesStreams.add(new Scanner(new File(Constants.PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH + nextBlock + FILE_EXTENSION.toLowerCase())));
                 nextBlock++;
             }
 

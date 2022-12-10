@@ -7,12 +7,29 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import org.tartarus.snowball.ext.englishStemmer;
 
 import static java.lang.Math.log;
 
 public final class Utils {
+    private static final HashSet<String> stopWords;
+    private static final englishStemmer englishStemmer = new englishStemmer();
 
+    static {
+        try {
+            stopWords = new HashSet<>(Files.readAllLines(Paths.get(Constants.STOPWORDS_PATH)));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
+    public static String stemming(String token){
+        englishStemmer.setCurrent(token);
+        if (englishStemmer.stem()) {
+            token = englishStemmer.getCurrent();
+        }
+        return token;
+    }
 
     public static void setupEnvironment(){
         try {
@@ -31,7 +48,7 @@ public final class Utils {
         return true;
     }
 
-    public static boolean validToken(String token, HashSet<String> stopWords){
+    public static boolean validToken(String token){
         //stop word removal & stemming
         if(stopWords.contains(token)) //if the token is a stop word don't consider it
             return false;
@@ -40,6 +57,17 @@ public final class Utils {
             return false;
         return true;
     }
+
+    public static String[] tokenize(String document){
+        // normalization
+        document = document.toLowerCase();
+        // TODO: more complex tokenization? Like BPE?
+        //remove punctuation and strange characters
+        document = document.replaceAll("[^a-z0-9\\s]", " ");
+        //split in tokens
+        return document.split(" ");
+    }
+
 
     public static ArrayList<Byte> encodeNumberToArrayList(int n) {
         int number = n;
