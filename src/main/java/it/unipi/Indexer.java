@@ -3,8 +3,6 @@ package it.unipi;
 import it.unipi.utils.Constants;
 
 import it.unipi.utils.Utils;
-import opennlp.tools.stemmer.PorterStemmer;
-import opennlp.tools.stemmer.snowball.SnowballStemmer;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
@@ -115,7 +113,7 @@ public class Indexer {
                 }
 
                 // DEBUG
-                /*if(currentDocId > 10000000){
+                if(currentDocId > 1000000){
                     writeToDisk();
                     lexicon.clear();
                     System.out.println(documentTable.size());
@@ -123,7 +121,7 @@ public class Indexer {
                     break;
                 }
 
-                 */
+
                 currentDocId++;
             }
             writeToDisk();

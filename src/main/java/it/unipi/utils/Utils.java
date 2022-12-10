@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
+import static java.lang.Math.log;
+
 public final class Utils {
 
 
@@ -39,7 +41,7 @@ public final class Utils {
         return true;
     }
 
-    public static ArrayList<Byte> encodeNumber(int n) {
+    public static ArrayList<Byte> encodeNumberToArrayList(int n) {
         int number = n;
         ArrayList<Byte> bytes = new ArrayList<>();
         while (true) {
@@ -51,22 +53,47 @@ public final class Utils {
         return bytes;
     }
 
-     public static byte[] encode(List<Integer> numbers) {
-        ArrayList<Byte> byteStream = new ArrayList<>();
-        List<Byte> bytes;
+    public static byte[] encodeNumber(int n) {
+        if (n == 0) {
+            return new byte[]{(byte) 128};
+        }
+        int i = (int) (log(n) / log(128)) + 1;
+        byte[] bytes = new byte[i];
+        int j = i - 1;
+        do {
+            bytes[j--] = (byte) (n % 128);
+            n /= 128;
+        } while (j >= 0);
+        bytes[i - 1] += 128;
+        return bytes;
+    }
+
+    public static byte[] encode(List<Integer> numbers) {
+        byte[] byteStream;
+        try {
+            byteStream = new byte[getEncodingLength(numbers)];
+        } catch (NegativeArraySizeException e) {
+            byteStream = new byte[50];
+            e.printStackTrace();
+        }
+        byte[] bytes;
+        int i = 0;
         for (Integer number: numbers) {
             bytes = encodeNumber(number);
-            byteStream.addAll(bytes);
+            for (byte byteElem: bytes)
+                byteStream[i++] = byteElem;
         }
-        return byteArrayListToByteArray(byteStream);
+        return byteStream;
     }
 
     public static int getEncodingLength(List<Integer> numbers){
         int bytesLength = 0;
-        List<Byte> bytes;
         for (Integer number: numbers) {
-            bytes = encodeNumber(number);
-            bytesLength += bytes.size();
+            if (number == 0) {
+                bytesLength += 1;
+            } else {
+                bytesLength += (int) (log(number) / log(128)) + 1;
+            }
         }
         return bytesLength;
     }
@@ -85,15 +112,6 @@ public final class Utils {
             }
         }
         return numbers;
-    }
-
-    public static byte[] byteArrayListToByteArray(ArrayList<Byte> bytes) {
-        byte[] bytesPrimitive = new byte[bytes.size()];
-        int j = 0;
-        for (Byte b: bytes) {
-            bytesPrimitive[j++] = b;
-        }
-        return bytesPrimitive;
     }
 
     //given an integer return the byte representation
