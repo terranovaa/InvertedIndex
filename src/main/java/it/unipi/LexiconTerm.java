@@ -19,8 +19,11 @@ public class LexiconTerm {
     //number of total occurrences of the term
     private int collectionFrequency;
     //posting_list of the term during indexing
-    private final ArrayList<Integer> postingListDocIds = new ArrayList<>();
-    private final ArrayList<Integer> postingListFrequencies = new ArrayList<>();
+    private ArrayList<Integer> postingListDocIds = new ArrayList<>();
+    private ArrayList<Integer> postingListFrequencies = new ArrayList<>();
+    //encoded posting_list used for performance during merge
+    private byte[] encodedDocIDs;
+    private byte[] encodedFrequencies;
     private int lastDocIdInserted;
 
     private int docIdsOffset;
@@ -31,6 +34,22 @@ public class LexiconTerm {
     //used to keep pointers during merge
     static private int docIDsFileOffset = 0;
     static private int frequenciesFileOffset = 0;
+
+    public byte[] getEncodedDocIDs() {
+        return encodedDocIDs;
+    }
+
+    public void setEncodedDocIDs(byte[] encodedDocIDs) {
+        this.encodedDocIDs = encodedDocIDs;
+    }
+
+    public byte[] getEncodedFrequencies() {
+        return encodedFrequencies;
+    }
+
+    public void setEncodedFrequencies(byte[] encodedFrequencies) {
+        this.encodedFrequencies = encodedFrequencies;
+    }
 
     public int getDocIdsOffset() {
         return docIdsOffset;
@@ -92,6 +111,14 @@ public class LexiconTerm {
         this.lastDocIdInserted = lastDocIdInserted;
     }
 
+    public void setPostingListDocIds(ArrayList<Integer> postingListDocIds) {
+        this.postingListDocIds = postingListDocIds;
+    }
+
+    public void setPostingListFrequencies(ArrayList<Integer> postingListFrequencies) {
+        this.postingListFrequencies = postingListFrequencies;
+    }
+
     public LexiconTerm() {
     }
 
@@ -127,6 +154,8 @@ public class LexiconTerm {
         return postingListFrequencies;
     }
 
+
+
     public void addPosting(int docID, int frequency){
         postingListDocIds.add(docID);
         postingListFrequencies.add(frequency);
@@ -135,6 +164,25 @@ public class LexiconTerm {
     public void extendPostingList(ArrayList<Integer> docIDs, ArrayList<Integer> frequencies) {
         postingListDocIds.addAll(docIDs);
         postingListFrequencies.addAll(frequencies);
+    }
+
+    public void mergeEncodedPostings(byte[] encodedDocIDs, byte[] encodedFrequencies){
+        if(this.encodedDocIDs == null){
+            this.encodedDocIDs = encodedDocIDs;
+            this.encodedFrequencies = encodedFrequencies;
+        } else {
+            //docids
+            byte[] mergedDocIDsArray = new byte[this.encodedDocIDs.length + encodedDocIDs.length];
+            System.arraycopy(this.encodedDocIDs, 0, mergedDocIDsArray, 0, this.encodedDocIDs.length);
+            System.arraycopy(encodedDocIDs, 0, mergedDocIDsArray, this.encodedDocIDs.length, encodedDocIDs.length);
+            this.encodedDocIDs = mergedDocIDsArray;
+
+            //frequencies
+            byte[] mergedFrequenciesArray = new byte[this.encodedFrequencies.length + encodedFrequencies.length];
+            System.arraycopy(this.encodedFrequencies, 0, mergedFrequenciesArray, 0, this.encodedFrequencies.length);
+            System.arraycopy(encodedFrequencies, 0, mergedFrequenciesArray, this.encodedFrequencies.length, encodedFrequencies.length);
+            this.encodedFrequencies = mergedFrequenciesArray;
+        }
     }
 
     //DEBUG
@@ -218,6 +266,9 @@ public class LexiconTerm {
         ArrayList<Integer> docIdsSkipPointers = new ArrayList<>();
         ArrayList<Integer> frequenciesSkipPointers = new ArrayList<>();
         if ((numSkipBlocks = (int) Math.floor((documentFrequency - 1) / (double) Constants.NUM_POSTINGS_PER_BLOCK)) > 0) {
+            this.setPostingListDocIds(Utils.decode(this.encodedDocIDs));
+            this.setPostingListFrequencies(Utils.decode(this.encodedFrequencies));
+
             for (int i = 0; i < numSkipBlocks; i++) {
                 // First element of the block
                 int docId = postingListDocIds.get(Constants.NUM_POSTINGS_PER_BLOCK * (i + 1));
@@ -241,10 +292,10 @@ public class LexiconTerm {
             docIdsSize += encodedDocIdsSkipPointers.length;
             docIDStream.write(encodedDocIdsSkipPointers);
         }
-        byte[] encodedDocIDs = Utils.encode(this.getPostingListDocIds());
-        docIDsFileOffset += encodedDocIDs.length;
-        docIdsSize += encodedDocIDs.length;
-        docIDStream.write(encodedDocIDs);
+        //byte[] encodedDocIDs = Utils.encode(this.getPostingListDocIds());
+        docIDsFileOffset += this.encodedDocIDs.length;
+        docIdsSize += this.encodedDocIDs.length;
+        docIDStream.write(this.encodedDocIDs);
         // frequencies
         if (frequenciesSkipPointers.size() > 0) {
             byte[] encodedFrequenciesSkipPointers = Utils.encode(frequenciesSkipPointers);
@@ -252,10 +303,10 @@ public class LexiconTerm {
             frequenciesSize += encodedFrequenciesSkipPointers.length;
             frequenciesStream.write(encodedFrequenciesSkipPointers);
         }
-        byte[] encodedFrequencies = Utils.encode(this.getPostingListFrequencies());
-        frequenciesFileOffset += encodedFrequencies.length ;
-        frequenciesSize += encodedFrequencies.length;
-        frequenciesStream.write(encodedFrequencies);
+        //byte[] encodedFrequencies = Utils.encode(this.getPostingListFrequencies());
+        frequenciesFileOffset += this.encodedFrequencies.length;
+        frequenciesSize += this.encodedFrequencies.length;
+        frequenciesStream.write(this.encodedFrequencies);
         // lexicon
         lexiconStream.write(this.serializeBinary());
     }

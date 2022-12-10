@@ -275,7 +275,6 @@ public class Indexer {
             FileOutputStream outputDocIdsStream = new FileOutputStream(postingsDocIdsFile);
             FileOutputStream outputFrequenciesStream = new FileOutputStream(postingsFrequenciesFile);
             OutputStream outputLexiconStream = new BufferedOutputStream(new FileOutputStream(lexiconFile));
-
             int numberOfBlocks = currentBlock + 1;
             int nextBlock = 0;
 
@@ -338,10 +337,7 @@ public class Indexer {
                     //get posting list from disk
                     byte[] postingDocIDs = postingsDocIdsStreams.get(blockIndex).readNBytes(nextBlockToMerge.getDocIdsSize());
                     byte[] postingFrequencies = postingsFrequenciesStreams.get(blockIndex).readNBytes(nextBlockToMerge.getFrequenciesSize());
-                    ArrayList<Integer> docIDs = Utils.decode(postingDocIDs);
-                    ArrayList<Integer> frequencies = Utils.decode(postingFrequencies);
-
-                    referenceLexiconTerm.extendPostingList(docIDs,frequencies);
+                    referenceLexiconTerm.mergeEncodedPostings(postingDocIDs, postingFrequencies);
 
                     if(bytesRead[blockIndex] < Constants.LEXICON_ENTRY_SIZE){
                         //if before we read less than those bytes, the relative block is finished
