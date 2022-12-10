@@ -1,7 +1,6 @@
 package it.unipi.utils;
 
 import java.io.IOException;
-import java.lang.instrument.Instrumentation;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -60,6 +59,16 @@ public final class Utils {
             byteStream.addAll(bytes);
         }
         return byteArrayListToByteArray(byteStream);
+    }
+
+    public static int getEncodingLength(List<Integer> numbers){
+        int bytesLength = 0;
+        List<Byte> bytes;
+        for (Integer number: numbers) {
+            bytes = encodeNumber(number);
+            bytesLength += bytes.size();
+        }
+        return bytesLength;
     }
 
     public static ArrayList<Integer> decode(byte[] byteStream) {

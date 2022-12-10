@@ -115,13 +115,15 @@ public class Indexer {
                 }
 
                 // DEBUG
-                if(currentDocId > 10000000){
+                /*if(currentDocId > 10000000){
                     writeToDisk();
                     lexicon.clear();
                     System.out.println(documentTable.size());
                     documentTable.clear();
                     break;
                 }
+
+                 */
                 currentDocId++;
             }
             writeToDisk();
@@ -264,14 +266,15 @@ public class Indexer {
     }
 
     public void mergeBlocksBinary(){
-        long start = System.currentTimeMillis();
+
         String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION;
         String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION;
         String lexiconFile = Constants.LEXICON_FILE_PATH + FILE_EXTENSION;
 
-        try (OutputStream outputDocIdsStream = new BufferedOutputStream(new FileOutputStream(postingsDocIdsFile));
-             OutputStream outputFrequenciesStream = new BufferedOutputStream(new FileOutputStream(postingsFrequenciesFile));
-             OutputStream outputLexiconStream = new BufferedOutputStream(new FileOutputStream(lexiconFile))){
+        try {
+            FileOutputStream outputDocIdsStream = new FileOutputStream(postingsDocIdsFile);
+            FileOutputStream outputFrequenciesStream = new FileOutputStream(postingsFrequenciesFile);
+            OutputStream outputLexiconStream = new BufferedOutputStream(new FileOutputStream(lexiconFile));
 
             int numberOfBlocks = currentBlock + 1;
             int nextBlock = 0;
@@ -287,12 +290,8 @@ public class Indexer {
                 nextBlock++;
             }
 
-            //cache in memory of the first N terms in the lexicon of each block
-            byte[][] buffers = new byte[numberOfBlocks][Constants.LEXICON_ENTRY_SIZE * Constants.TERMS_TO_CACHE_DURING_MERGE];
             byte[][] nextLexiconEntry = new byte[numberOfBlocks][Constants.LEXICON_ENTRY_SIZE];
             LexiconTerm[] nextTerm = new LexiconTerm[numberOfBlocks];
-            //used to keep track of current pointer in each buffer
-            int[] pointers = new int[numberOfBlocks];
             //used to keep track of how many bytes were read the last time
             int[] bytesRead = new int[numberOfBlocks];
             ArrayList<Integer> activeBlocks = new ArrayList<>();
@@ -302,9 +301,7 @@ public class Indexer {
             for(int i=0; i < numberOfBlocks; i++){
                 activeBlocks.add(i);
                 //read from file
-                bytesRead[i] = lexiconStreams.get(i).readNBytes(buffers[i], 0,Constants.LEXICON_ENTRY_SIZE * Constants.TERMS_TO_CACHE_DURING_MERGE);
-                //get next entry
-                nextLexiconEntry[i] = Arrays.copyOfRange(buffers[i], pointers[i], Constants.LEXICON_ENTRY_SIZE);
+                bytesRead[i] = lexiconStreams.get(i).readNBytes(nextLexiconEntry[i], 0,Constants.LEXICON_ENTRY_SIZE);
                 nextTerm[i] = new LexiconTerm();
                 nextTerm[i].deserializeBinary(nextLexiconEntry[i]);
                 if(minTerm==null || nextTerm[i].getTerm().compareTo(minTerm) < 0){
@@ -344,34 +341,16 @@ public class Indexer {
                     ArrayList<Integer> docIDs = Utils.decode(postingDocIDs);
                     ArrayList<Integer> frequencies = Utils.decode(postingFrequencies);
 
-                    //merge postings
-                    for (Integer docID: docIDs){
-                        Integer frequency = frequencies.remove(0);
-                        referenceLexiconTerm.addPosting(docID, frequency);
-                    }
+                    referenceLexiconTerm.extendPostingList(docIDs,frequencies);
 
-                    //update pointers for every block
-                    pointers[blockIndex] += Constants.LEXICON_ENTRY_SIZE;
-                    if(pointers[blockIndex] >= bytesRead[blockIndex]){
-                        // surely the last block
-                        if (bytesRead[blockIndex] < Constants.LEXICON_ENTRY_SIZE * Constants.TERMS_TO_CACHE_DURING_MERGE){
-                            //if before we read less than those bytes, the relative block is finished
-                            //blockIndex is not the index of the arraylist but an Integer object
-                            activeBlocks.remove(blockIndex);
-                        } else {
-                            //if all the in-memory buffer is consumed, refill it reading again from file
-                            bytesRead[blockIndex] = lexiconStreams.get(blockIndex).readNBytes(buffers[blockIndex], 0, Constants.LEXICON_ENTRY_SIZE * Constants.TERMS_TO_CACHE_DURING_MERGE);
-                            // if it is now equal to 0, the block has a size exactly equal to a multiple of TERMS_TO_CACHE_DURING_MERGE * LEXICON_ENTRY_SIZE
-                            if(bytesRead[blockIndex] == 0){
-                                activeBlocks.remove(blockIndex);
-                            }
-                            pointers[blockIndex] = 0;
-                        }
-
+                    if(bytesRead[blockIndex] < Constants.LEXICON_ENTRY_SIZE){
+                        //if before we read less than those bytes, the relative block is finished
+                        //blockIndex is not the index of the arraylist but an Integer object
+                        activeBlocks.remove(blockIndex);
                     }
                     if(activeBlocks.contains(blockIndex)){
-                        //read the next entry from the buffer
-                        nextLexiconEntry[blockIndex] = Arrays.copyOfRange(buffers[blockIndex], pointers[blockIndex], pointers[blockIndex] + Constants.LEXICON_ENTRY_SIZE);
+                        //read the next entry from the block
+                        bytesRead[blockIndex] = lexiconStreams.get(blockIndex).readNBytes(nextLexiconEntry[blockIndex], 0, Constants.LEXICON_ENTRY_SIZE);
                         nextTerm[blockIndex].deserializeBinary(nextLexiconEntry[blockIndex]);
                     }
                 }
@@ -379,8 +358,7 @@ public class Indexer {
             }
 
             mergePartialDocumentTables();
-            long end = System.currentTimeMillis();
-            System.out.println("Merged in " + (end - start) + " ms");
+
 
         } catch (IOException ioe){
             ioe.printStackTrace();
@@ -481,12 +459,8 @@ public class Indexer {
                     for(String frequencyString: Arrays.asList(postingFrequencies.split(",")))
                         frequencies.add(Integer.parseInt(frequencyString));
 
-
                     //merge postings
-                    for (Integer docID: docIDs){
-                        Integer frequency = frequencies.remove(0);
-                        referenceLexiconTerm.addPosting(docID, frequency);
-                    }
+                    referenceLexiconTerm.extendPostingList(docIDs, frequencies);
 
                     if (buffers[blockIndex].isEmpty()) {
                         // check if block is finished

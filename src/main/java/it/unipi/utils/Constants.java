@@ -23,11 +23,10 @@ public final class Constants {
     public static final String DAT_FORMAT = ".dat";
     public static final String TXT_FORMAT = ".txt";
 
-    //TODO to change (one term is too long, crashes after having processed around 1.5 millions documents)
     public static final int LEXICON_ENTRY_SIZE = 144;
     // TODO to change too, doc_no max size is 20 chars ok? 20*6 + 2*4
     public static final int DOCUMENT_ENTRY_SIZE = 128;
-    //TODO how many terms do we have to cache?
+    //TODO useless now?
     public static final int TERMS_TO_CACHE_DURING_MERGE = 10;
     // todo
     public static final int NUM_POSTINGS_PER_BLOCK = 1024;

@@ -2,7 +2,6 @@ package it.unipi;
 
 import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
-import opennlp.tools.parser.Cons;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -133,6 +132,11 @@ public class LexiconTerm {
         postingListFrequencies.add(frequency);
     }
 
+    public void extendPostingList(ArrayList<Integer> docIDs, ArrayList<Integer> frequencies) {
+        postingListDocIds.addAll(docIDs);
+        postingListFrequencies.addAll(frequencies);
+    }
+
     //DEBUG
     public void printInfo(){
         System.out.println("term: " + term +
@@ -214,8 +218,6 @@ public class LexiconTerm {
         ArrayList<Integer> docIdsSkipPointers = new ArrayList<>();
         ArrayList<Integer> frequenciesSkipPointers = new ArrayList<>();
         if ((numSkipBlocks = (int) Math.floor((documentFrequency - 1) / (double) Constants.NUM_POSTINGS_PER_BLOCK)) > 0) {
-            byte[] encodedDocIDsBlock;
-            byte[] encodedFrequenciesBlock;
             for (int i = 0; i < numSkipBlocks; i++) {
                 // First element of the block
                 int docId = postingListDocIds.get(Constants.NUM_POSTINGS_PER_BLOCK * (i + 1));
@@ -223,34 +225,34 @@ public class LexiconTerm {
                 docIdsSkipPointers.add(docId);
                 frequenciesSkipPointers.add(frequency);
                 // from is inclusive, to is exclusive
-                encodedDocIDsBlock = Utils.encode(this.getPostingListDocIds().subList((i * Constants.NUM_POSTINGS_PER_BLOCK) , ((i + 1) * Constants.NUM_POSTINGS_PER_BLOCK)));
-                encodedFrequenciesBlock = Utils.encode(this.getPostingListFrequencies().subList((i * Constants.NUM_POSTINGS_PER_BLOCK), ((i + 1) * Constants.NUM_POSTINGS_PER_BLOCK)));
-                int docIdOffset = encodedDocIDsBlock.length;
-                int frequencyOffset = encodedFrequenciesBlock.length;
+                int docIdOffset = Utils.getEncodingLength(this.getPostingListDocIds().subList((i * Constants.NUM_POSTINGS_PER_BLOCK) , ((i + 1) * Constants.NUM_POSTINGS_PER_BLOCK)));
+                int frequencyOffset = Utils.getEncodingLength(this.getPostingListFrequencies().subList((i * Constants.NUM_POSTINGS_PER_BLOCK), ((i + 1) * Constants.NUM_POSTINGS_PER_BLOCK)));
                 docIdsSkipPointers.add(docIdOffset);
                 frequenciesSkipPointers.add(frequencyOffset);
             }
         }
+
         this.setDocIdsOffset(docIDsFileOffset);
         this.setFrequenciesOffset(frequenciesFileOffset);
         // docIDs
-        byte[] encodedDocIDs = Utils.encode(this.getPostingListDocIds());
         if (docIdsSkipPointers.size() > 0) {
             byte[] encodedDocIdsSkipPointers = Utils.encode(docIdsSkipPointers);
             docIDsFileOffset += encodedDocIdsSkipPointers.length;
             docIdsSize += encodedDocIdsSkipPointers.length;
+            docIDStream.write(encodedDocIdsSkipPointers);
         }
+        byte[] encodedDocIDs = Utils.encode(this.getPostingListDocIds());
         docIDsFileOffset += encodedDocIDs.length;
         docIdsSize += encodedDocIDs.length;
         docIDStream.write(encodedDocIDs);
         // frequencies
-        byte[] encodedFrequencies = Utils.encode(this.getPostingListFrequencies());
         if (frequenciesSkipPointers.size() > 0) {
             byte[] encodedFrequenciesSkipPointers = Utils.encode(frequenciesSkipPointers);
             frequenciesFileOffset += encodedFrequenciesSkipPointers.length;
             frequenciesSize += encodedFrequenciesSkipPointers.length;
             frequenciesStream.write(encodedFrequenciesSkipPointers);
         }
+        byte[] encodedFrequencies = Utils.encode(this.getPostingListFrequencies());
         frequenciesFileOffset += encodedFrequencies.length ;
         frequenciesSize += encodedFrequencies.length;
         frequenciesStream.write(encodedFrequencies);

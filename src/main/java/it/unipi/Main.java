@@ -16,10 +16,14 @@ public class Main {
             indexer = new Indexer(args[0]);
         } else // default case binary
             indexer = new Indexer(Constants.DAT_FORMAT);
-        long start = System.currentTimeMillis();
+
+        long startIndexing = System.currentTimeMillis();
         indexer.indexCollection();
-        long end = System.currentTimeMillis();
-        System.out.println("Indexed in " + (end - start) + " ms");
+        long endIndexing = System.currentTimeMillis();
+        System.out.println("Indexed in " + (endIndexing - startIndexing) + " ms");
+        long startMerge = System.currentTimeMillis();
         indexer.mergeBlocks();
+        long endMerge = System.currentTimeMillis();
+        System.out.println("Merged in " + (endMerge - startMerge) + " ms");
     }
 }
