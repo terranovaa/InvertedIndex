@@ -2,7 +2,8 @@ package it.unipi.utils;
 
 public final class Constants {
 
-    public static final String[] DIRECTORIES_PATHS = new String[]{"./collection","./resources", "./resources/document_table", "./resources/inverted_index/", "./resources/lexicon/" };
+    public static final String[] DIRECTORIES_PATHS = new String[]{"./resources", "./resources/document_table", "./resources/inverted_index/", "./resources/lexicon/" };
+    public static final String[] TEMPORARY_DIRECTORIES_PATHS = new String[]{"./resources/document_table", "./resources/inverted_index/", "./resources/lexicon/" };
     private static final String RESOURCES_PATH = "./resources/";
     private static final String INVERTED_INDEX_PATH = "inverted_index/";
 
@@ -22,6 +23,9 @@ public final class Constants {
 
     public static final String DAT_FORMAT = ".dat";
     public static final String TXT_FORMAT = ".txt";
+
+    public static final double MEMORY_FULL_THRESHOLD_PERCENTAGE = 0.75;
+    public static final double MEMORY_ENOUGH_THRESHOLD_PERCENTAGE = 0.25;
 
     public static final int LEXICON_ENTRY_SIZE = 144;
     // TODO to change too, doc_no max size is 20 chars ok? 20*6 + 2*4

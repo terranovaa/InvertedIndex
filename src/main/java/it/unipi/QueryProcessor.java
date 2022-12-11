@@ -1,5 +1,8 @@
 package it.unipi;
 import it.unipi.exceptions.IllegalQueryType;
+import it.unipi.models.Document;
+import it.unipi.models.LexiconTermBinaryIndexing;
+import it.unipi.models.LexiconTermIndexing;
 import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
@@ -11,7 +14,7 @@ import static it.unipi.utils.Utils.*;
 
 public class QueryProcessor {
     private final String[] QUIT_CODES = new String[]{"Q", "q", "QUIT", "quit", "EXIT", "exit"};
-    private final TreeMap<String, LexiconTerm> lexicon = new TreeMap<>();
+    private final TreeMap<String, LexiconTermIndexing> lexicon = new TreeMap<>();
     private final HashMap<Integer, Document> documentTable = new HashMap<>();
 
     public QueryProcessor(){
@@ -29,7 +32,7 @@ public class QueryProcessor {
             throw new RuntimeException(e);
         }
         byte[] nextLexiconEntry = new byte[Constants.LEXICON_ENTRY_SIZE];
-        LexiconTerm nextLexicon;
+        LexiconTermBinaryIndexing nextLexicon;
         int bytesRead = 0;
         while(true) {
             try {
@@ -39,8 +42,8 @@ public class QueryProcessor {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            nextLexicon = new LexiconTerm();
-            nextLexicon.deserializeBinary(nextLexiconEntry);
+            nextLexicon = new LexiconTermBinaryIndexing();
+            nextLexicon.deserialize(nextLexiconEntry);
             lexicon.put(nextLexicon.getTerm(), nextLexicon);
         }
         System.out.println("Lexicon read in memory..");
@@ -88,7 +91,7 @@ public class QueryProcessor {
                 try {
                     pid = processQuery(line);
                 } catch(IllegalQueryType e){
-                    System.out.println(e);
+                    e.printStackTrace();
                     System.out.println("Input Format: [AND|OR] term1 ... termN");
                 }
                 if(!pid.equals("NaN"))
@@ -106,7 +109,7 @@ public class QueryProcessor {
         //TODO: remove duplicates?
         for (int i = 1; i < tokens.length; ++i){
             // skip first token specifying the type of the query
-            if(!validToken(tokens[i])) // also remove stopwords
+            if(Utils.invalidToken(tokens[i])) // also remove stopwords
                 continue;
             tokens[i] = Utils.stemming(tokens[i]);
         }
@@ -154,8 +157,8 @@ public class QueryProcessor {
         // TODO: Continue defining interface and reading from the disk
         PostingListQueryInterface[] pls = new PostingListQueryInterface[tokens.length];
         for(String token: tokens){
-            LexiconTerm lexiconTerm = lexicon.get("token");
-            PostingListQueryInterface pl = new PostingListQueryInterface(token, lexiconTerm);
+            LexiconTermIndexing lexiconTermIndexing = lexicon.get("token");
+            PostingListQueryInterface pl = new PostingListQueryInterface(token, lexiconTermIndexing);
         }
         return pls;
     }

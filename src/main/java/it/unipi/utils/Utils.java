@@ -1,12 +1,17 @@
 package it.unipi.utils;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Stream;
+
 import org.tartarus.snowball.ext.englishStemmer;
 
 import static java.lang.Math.log;
@@ -40,22 +45,32 @@ public final class Utils {
         }
     }
 
+    public static void deleteTemporaryFolders(){
+
+        for(String directory: Constants.TEMPORARY_DIRECTORIES_PATHS) {
+            Path pathToBeDeleted = Paths.get(directory);
+            try (Stream<Path> files = Files.walk(pathToBeDeleted)) {
+                files.sorted(Comparator.reverseOrder())
+                        .map(Path::toFile)
+                        .forEach(File::delete);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     // TODO: Add logic, malformed lines?
     public static boolean validDocument(String document){
         // check empty page
-        if(document.length()==0)
-            return false;
-        return true;
+        return document.length() != 0;
     }
 
-    public static boolean validToken(String token){
+    public static boolean invalidToken(String token){
         //stop word removal & stemming
         if(stopWords.contains(token)) //if the token is a stop word don't consider it
-            return false;
+            return true;
 
-        if (token.length() > Constants.MAX_TERM_LEN)
-            return false;
-        return true;
+        return token.length() > Constants.MAX_TERM_LEN;
     }
 
     public static String[] tokenize(String document){
@@ -68,18 +83,6 @@ public final class Utils {
         return document.split(" ");
     }
 
-
-    public static ArrayList<Byte> encodeNumberToArrayList(int n) {
-        int number = n;
-        ArrayList<Byte> bytes = new ArrayList<>();
-        while (true) {
-            bytes.add(0, (byte) (number % 128));
-            if (number < 128) break;
-            number = Math.floorDiv(number, 128);
-        }
-        bytes.set(bytes.size() - 1, (byte) (bytes.get(bytes.size() - 1) | 0x80));
-        return bytes;
-    }
 
     public static byte[] encodeNumber(int n) {
         if (n == 0) {

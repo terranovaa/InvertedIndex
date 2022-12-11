@@ -1,4 +1,4 @@
-package it.unipi;
+package it.unipi.models;
 
 import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
@@ -21,8 +21,8 @@ public class Document {
     }
 
     public void printInfo(){
-        System.out.println("docid: " + docId +
-                " | docno: " + docNo +
+        System.out.println("doc_id: " + docId +
+                " | doc_no: " + docNo +
                 " | length: " + length);
         System.out.println("\n------------------------------");
     }
@@ -53,8 +53,8 @@ public class Document {
 
 
     //encode document object as an array of bytes with fixed dimension
-     byte[] serializeBinary() {
-         // TODO to change too, docno max size is 20 chars ok? 20*6 + 2*4
+     public byte[] serializeBinary() {
+         // TODO to change too, doc_no max size is 20 chars ok? 20*6 + 2*4
 
          byte[] documentEntry = new byte[Constants.DOCUMENT_ENTRY_SIZE];
          //variable number of bytes
@@ -63,7 +63,7 @@ public class Document {
          byte[] docId = Utils.intToByteArray(this.getDocId());
          byte[] docLength = Utils.intToByteArray(this.getLength());
 
-         //fill the first part of the buffer with the utf-8 representation of the docno, leave the rest to 0
+         //fill the first part of the buffer with the utf-8 representation of the doc_no, leave the rest to 0
          System.arraycopy(docNo, 0, documentEntry, 0, docNo.length);
          //fill the last part of the buffer
          System.arraycopy(docId, 0, documentEntry, Constants.DOCUMENT_ENTRY_SIZE - 8, 4);
@@ -72,7 +72,7 @@ public class Document {
     }
 
     //encode document object as an array of Strings
-    String[] serializeTextual() {
+    public String[] serializeTextual() {
         ArrayList<String> list = new ArrayList<>();
         list.add(docNo);
         list.add(Integer.toString(docId));
@@ -82,7 +82,7 @@ public class Document {
 
 
     //decode a disk-based array of bytes representing a document index entry in a Document object
-    void deserializeBinary(byte[] buffer) {
+    public void deserializeBinary(byte[] buffer) {
         //to decode the docNo, detect the position of the first byte equal 0
         int endOfString = 0;
         while(buffer[endOfString] != 0){

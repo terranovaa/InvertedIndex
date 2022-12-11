@@ -5,7 +5,7 @@
 /resources/documentIndex/
 /resources/document_table/
 /target/
-/resources/document_table.dat
-/resources/lexicon.dat
-/resources/postings_doc_ids.dat
-/resources/postings_frequencies.dat
+/resources/document_table.*
+/resources/lexicon.*
+/resources/postings_doc_ids.*
+/resources/postings_frequencies.*
