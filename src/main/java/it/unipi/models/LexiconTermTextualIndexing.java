@@ -2,8 +2,6 @@ package it.unipi.models;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class LexiconTermTextualIndexing extends LexiconTermIndexing {
@@ -16,18 +14,11 @@ public class LexiconTermTextualIndexing extends LexiconTermIndexing {
     }
 
     public String[] serialize() {
-        ArrayList<String> list = new ArrayList<>();
-        list.add(term);
-        list.add(Integer.toString(documentFrequency));
-        list.add(Integer.toString(collectionFrequency));
-        return list.toArray(new String[0]);
+        return this.serializeToString();
     }
 
     public void deserialize(String buffer) {
-        List<String> elements = Arrays.asList(buffer.split(","));
-        term = elements.get(0);
-        documentFrequency = Integer.parseInt(elements.get(1));
-        collectionFrequency = Integer.parseInt(elements.get(2));
+        this.deserializeFromString(buffer);
     }
 
     public void writeToDisk(BufferedWriter docIDStream, BufferedWriter frequenciesStream, BufferedWriter lexiconStream) throws IOException {

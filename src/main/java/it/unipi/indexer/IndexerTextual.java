@@ -99,7 +99,7 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
 
             ArrayList<Integer> activeBlocks = new ArrayList<>();
 
-            String minTerm = null;
+            String minTerm;
 
             for(int i=0; i < numberOfBlocks; i++){
                 activeBlocks.add(i);
@@ -107,9 +107,6 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
                 nextLexiconEntry[i] = lexiconReader.get(i).readLine();
                 nextTerm[i] = new LexiconTermTextualIndexing();
                 nextTerm[i].deserialize(nextLexiconEntry[i]);
-                if(minTerm==null || nextTerm[i].getTerm().compareTo(minTerm) < 0){
-                    minTerm = nextTerm[i].getTerm();
-                }
             }
 
             while(activeBlocks.size() > 0){
@@ -128,6 +125,8 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
                         lexiconsToMerge.add(blockIndex);
                     }
                 }
+
+                collectionStatistics.incrementNumDistinctTerms();
 
                 //create a new lexiconTerm object for the min term
                 LexiconTermTextualIndexing referenceLexiconTerm = new LexiconTermTextualIndexing(nextTerm[lexiconsToMerge.get(0)].getTerm());
@@ -166,6 +165,7 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
                 referenceLexiconTerm.writeToDisk(outputDocIdsStream, outputFrequenciesStream, outputLexiconStream);
             }
             mergePartialDocumentTables();
+            //TODO write collection statistics to disk
             long end = System.currentTimeMillis();
             System.out.println("Merged in " + (end - start) + " ms");
         } catch (IOException ioe){

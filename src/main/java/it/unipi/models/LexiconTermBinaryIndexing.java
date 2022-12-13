@@ -5,10 +5,15 @@ import it.unipi.utils.Utils;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
+
+    private byte[] encodedDocIDs;
+    private byte[] encodedFrequencies;
+    //used to keep pointers during merge
+    static private int docIDsFileOffset = 0;
+    static private int frequenciesFileOffset = 0;
 
     public LexiconTermBinaryIndexing() {
     }
@@ -18,49 +23,31 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
     }
 
     public byte[] serialize() {
-
-        byte[] lexiconEntry = new byte[Constants.LEXICON_ENTRY_SIZE];
-        //variable number of bytes
-        byte[] entryTerm = term.getBytes(StandardCharsets.UTF_8);
-        //fixed number of bytes, 4 for each integer
-        byte[] entryDf = Utils.intToByteArray(documentFrequency);
-        byte[] entryCf = Utils.intToByteArray(collectionFrequency);
-        byte[] entryDocIDOffset = Utils.intToByteArray(docIdsOffset);
-        byte[] entryFrequenciesOffset = Utils.intToByteArray(frequenciesOffset);
-        byte[] entryDocIDSize = Utils.intToByteArray(docIdsSize);
-        byte[] entryFrequenciesSize = Utils.intToByteArray(frequenciesSize);
-        try {
-            //fill the first part of the buffer with the utf-8 representation of the term, leave the rest to 0
-            System.arraycopy(entryTerm, 0, lexiconEntry, 0, entryTerm.length);
-            //fill the last part of the buffer with statistics and offsets
-            System.arraycopy(entryDf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 24, 4);
-            System.arraycopy(entryCf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 20, 4);
-            System.arraycopy(entryDocIDOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 16, 4);
-            System.arraycopy(entryFrequenciesOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 12, 4);
-            System.arraycopy(entryDocIDSize, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 8, 4);
-            System.arraycopy(entryFrequenciesSize, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 4, 4);
-        } catch (ArrayIndexOutOfBoundsException e) {
-            e.printStackTrace();
-        }
-        return lexiconEntry;
+        return this.serializeBinary();
     }
 
     //decode a disk-based array of bytes representing a lexicon entry in a LexiconTermIndexing object
     public void deserialize(byte[] buffer) {
-        //to decode the term, detect the position of the first byte equal 0
-        int endOfString = 0;
-        while(buffer[endOfString] != 0){
-            endOfString++;
+        deserializeBinary(buffer);
+    }
+
+    public void mergeEncodedPostings(byte[] encodedDocIDs, byte[] encodedFrequencies){
+        if(this.encodedDocIDs == null){
+            this.encodedDocIDs = encodedDocIDs;
+            this.encodedFrequencies = encodedFrequencies;
+        } else {
+            //doc_ids
+            byte[] mergedDocIDsArray = new byte[this.encodedDocIDs.length + encodedDocIDs.length];
+            System.arraycopy(this.encodedDocIDs, 0, mergedDocIDsArray, 0, this.encodedDocIDs.length);
+            System.arraycopy(encodedDocIDs, 0, mergedDocIDsArray, this.encodedDocIDs.length, encodedDocIDs.length);
+            this.encodedDocIDs = mergedDocIDsArray;
+
+            //frequencies
+            byte[] mergedFrequenciesArray = new byte[this.encodedFrequencies.length + encodedFrequencies.length];
+            System.arraycopy(this.encodedFrequencies, 0, mergedFrequenciesArray, 0, this.encodedFrequencies.length);
+            System.arraycopy(encodedFrequencies, 0, mergedFrequenciesArray, this.encodedFrequencies.length, encodedFrequencies.length);
+            this.encodedFrequencies = mergedFrequenciesArray;
         }
-        //parse only the first part of the buffer until the first byte equal 0
-        term = new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
-        //decode the rest of the buffer
-        documentFrequency = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 24);
-        collectionFrequency = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 20);
-        docIdsOffset = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 16);
-        frequenciesOffset = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 12);
-        docIdsSize = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 8);
-        frequenciesSize = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 4);
     }
 
     public void writeToDisk(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream) throws IOException {

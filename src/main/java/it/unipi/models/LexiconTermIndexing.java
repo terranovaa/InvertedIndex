@@ -8,13 +8,16 @@ public class LexiconTermIndexing extends LexiconTerm {
     protected ArrayList<Integer> postingListDocIds = new ArrayList<>();
     protected ArrayList<Integer> postingListFrequencies = new ArrayList<>();
     //encoded posting_list used for performance during merge
-    protected byte[] encodedDocIDs;
-    protected byte[] encodedFrequencies;
     private int lastDocIdInserted;
 
-    //used to keep pointers during merge
-    static protected int docIDsFileOffset = 0;
-    static protected int frequenciesFileOffset = 0;
+
+    public ArrayList<Integer> getPostingListDocIds() {
+        return postingListDocIds;
+    }
+
+    public ArrayList<Integer> getPostingListFrequencies() {
+        return postingListFrequencies;
+    }
 
     public void setPostingListDocIds(ArrayList<Integer> postingListDocIds) {
         this.postingListDocIds = postingListDocIds;
@@ -51,37 +54,9 @@ public class LexiconTermIndexing extends LexiconTerm {
         }
     }
 
-    public ArrayList<Integer> getPostingListDocIds() {
-        return postingListDocIds;
-    }
-
-    public ArrayList<Integer> getPostingListFrequencies() {
-        return postingListFrequencies;
-    }
-
-
     public void extendPostingList(ArrayList<Integer> docIDs, ArrayList<Integer> frequencies) {
         postingListDocIds.addAll(docIDs);
         postingListFrequencies.addAll(frequencies);
-    }
-
-    public void mergeEncodedPostings(byte[] encodedDocIDs, byte[] encodedFrequencies){
-        if(this.encodedDocIDs == null){
-            this.encodedDocIDs = encodedDocIDs;
-            this.encodedFrequencies = encodedFrequencies;
-        } else {
-            //doc_ids
-            byte[] mergedDocIDsArray = new byte[this.encodedDocIDs.length + encodedDocIDs.length];
-            System.arraycopy(this.encodedDocIDs, 0, mergedDocIDsArray, 0, this.encodedDocIDs.length);
-            System.arraycopy(encodedDocIDs, 0, mergedDocIDsArray, this.encodedDocIDs.length, encodedDocIDs.length);
-            this.encodedDocIDs = mergedDocIDsArray;
-
-            //frequencies
-            byte[] mergedFrequenciesArray = new byte[this.encodedFrequencies.length + encodedFrequencies.length];
-            System.arraycopy(this.encodedFrequencies, 0, mergedFrequenciesArray, 0, this.encodedFrequencies.length);
-            System.arraycopy(encodedFrequencies, 0, mergedFrequenciesArray, this.encodedFrequencies.length, encodedFrequencies.length);
-            this.encodedFrequencies = mergedFrequenciesArray;
-        }
     }
 
     //DEBUG

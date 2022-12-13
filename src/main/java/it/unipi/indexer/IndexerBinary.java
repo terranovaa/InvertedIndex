@@ -97,18 +97,15 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
             int[] bytesRead = new int[numberOfBlocks];
             ArrayList<Integer> activeBlocks = new ArrayList<>();
 
-            String minTerm = null;
-
             for(int i=0; i < numberOfBlocks; i++){
                 activeBlocks.add(i);
                 //read from file
                 bytesRead[i] = lexiconStreams.get(i).readNBytes(nextLexiconEntry[i], 0,Constants.LEXICON_ENTRY_SIZE);
                 nextTerm[i] = new LexiconTermBinaryIndexing();
                 nextTerm[i].deserialize(nextLexiconEntry[i]);
-                if(minTerm==null || nextTerm[i].getTerm().compareTo(minTerm) < 0){
-                    minTerm = nextTerm[i].getTerm();
-                }
             }
+
+            String minTerm;
 
             while(activeBlocks.size() > 0){
                 ArrayList<Integer> lexiconsToMerge = new ArrayList<>();
@@ -125,6 +122,8 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
                         lexiconsToMerge.add(blockIndex);
                     }
                 }
+
+                collectionStatistics.incrementNumDistinctTerms();
 
                 //create a new lexiconTerm object for the min term
                 LexiconTermBinaryIndexing referenceLexiconTerm = new LexiconTermBinaryIndexing(nextTerm[lexiconsToMerge.get(0)].getTerm());

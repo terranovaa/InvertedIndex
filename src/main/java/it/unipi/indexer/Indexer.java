@@ -1,5 +1,6 @@
 package it.unipi.indexer;
 
+import it.unipi.models.CollectionStatistics;
 import it.unipi.models.Document;
 import it.unipi.models.LexiconTermIndexing;
 import it.unipi.utils.Constants;
@@ -22,6 +23,7 @@ import java.util.function.Supplier;
 abstract public class Indexer <T extends LexiconTermIndexing> {
 
     //TODO: Collection statistics
+
     // current doc id
     protected int currentDocId = 0;
     // useful for giving different names to partial files
@@ -30,6 +32,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
     protected final TreeMap<String, T> lexicon = new TreeMap<>();
     private final Supplier<? extends T> lexiconTermConstructor;
     protected final HashMap<Integer, Document> documentTable = new HashMap<>();
+    protected final CollectionStatistics collectionStatistics = new CollectionStatistics();
     protected final MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
     protected final String FILE_EXTENSION;
 
@@ -78,6 +81,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
                     if(Utils.invalidToken(token))
                         continue;
                     token = Utils.stemming(token);
+                    collectionStatistics.incrementNumTotalTerms();
 
                     //check if the token is already in the lexicon, if not create new entry
                     T lexiconEntry;
