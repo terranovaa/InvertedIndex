@@ -12,46 +12,9 @@ public class LexiconTermIndexing extends LexiconTerm {
     protected byte[] encodedFrequencies;
     private int lastDocIdInserted;
 
-    protected int docIdsOffset;
-    protected int frequenciesOffset;
-    protected int docIdsSize;
-    protected int frequenciesSize;
-
     //used to keep pointers during merge
     static protected int docIDsFileOffset = 0;
     static protected int frequenciesFileOffset = 0;
-
-    public void setDocIdsOffset(int docIdsOffset) {
-        this.docIdsOffset = docIdsOffset;
-    }
-
-    public int getDocIdsOffset() {
-        return docIdsOffset;
-    }
-
-    public void setFrequenciesOffset(int frequenciesOffset) {
-        this.frequenciesOffset = frequenciesOffset;
-    }
-
-    public int getFrequenciesOffset() {
-        return frequenciesOffset;
-    }
-
-    public int getDocIdsSize() {
-        return docIdsSize;
-    }
-
-    public void setDocIdsSize(int docIdsSize) {
-        this.docIdsSize = docIdsSize;
-    }
-
-    public int getFrequenciesSize() {
-        return frequenciesSize;
-    }
-
-    public void setFrequenciesSize(int frequenciesSize) {
-        this.frequenciesSize = frequenciesSize;
-    }
 
     public void setPostingListDocIds(ArrayList<Integer> postingListDocIds) {
         this.postingListDocIds = postingListDocIds;
