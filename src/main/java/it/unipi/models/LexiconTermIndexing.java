@@ -25,8 +25,16 @@ public class LexiconTermIndexing extends LexiconTerm {
         this.docIdsOffset = docIdsOffset;
     }
 
+    public int getDocIdsOffset() {
+        return docIdsOffset;
+    }
+
     public void setFrequenciesOffset(int frequenciesOffset) {
         this.frequenciesOffset = frequenciesOffset;
+    }
+
+    public int getFrequenciesOffset() {
+        return frequenciesOffset;
     }
 
     public int getDocIdsSize() {
@@ -114,7 +122,7 @@ public class LexiconTermIndexing extends LexiconTerm {
     }
 
     //DEBUG
-    public void printInfo(){
+    public void printInfo(int numPostings){
         System.out.println("term: " + term +
                 " | df: " + documentFrequency +
                 " | cf: " + collectionFrequency +
@@ -122,7 +130,7 @@ public class LexiconTermIndexing extends LexiconTerm {
                 " | fOffset: " + frequenciesOffset +
                 " | dSize: " + docIdsSize +
                 " | fSize: " + frequenciesSize);
-        for(int i = 0; i < postingListDocIds.size(); i++){
+        for(int i = 0; i < numPostings; i++){
             System.out.print("[" + "docID: " + postingListDocIds.get(i) + " | freq: " + postingListFrequencies.get(i) + "] ");
         }
         System.out.println("\n------------------------------");

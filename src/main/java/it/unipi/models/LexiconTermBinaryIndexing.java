@@ -65,28 +65,41 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
     public void writeToDisk(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream) throws IOException {
         int numSkipBlocks;
+        int blockSize;
+
+        //(doc id,offset) list for skip pointers
         ArrayList<Integer> docIdsSkipPointers = new ArrayList<>();
         ArrayList<Integer> frequenciesSkipPointers = new ArrayList<>();
-        if ((numSkipBlocks = (int) Math.floor((documentFrequency - 1) / (double) Constants.NUM_POSTINGS_PER_BLOCK)) > 0) {
+
+        if (this.documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
+            //decode posting list only if needed
             this.setPostingListDocIds(Utils.decode(this.encodedDocIDs));
             this.setPostingListFrequencies(Utils.decode(this.encodedFrequencies));
 
-            for (int i = 0; i < numSkipBlocks; i++) {
-                // First element of the block
-                int docId = postingListDocIds.get(Constants.NUM_POSTINGS_PER_BLOCK * (i + 1));
-                int frequency = postingListFrequencies.get(Constants.NUM_POSTINGS_PER_BLOCK * (i + 1));
+            //create sqrt(df) blocks of sqrt(df) size (rounded to the highest value when needed)
+            blockSize = (int) Math.ceil(Math.sqrt(this.documentFrequency));
+            numSkipBlocks = (int) Math.ceil((double)this.documentFrequency / (double)blockSize);
+
+            //Avoid inserting details about the last block, since they can be inferred from the previous ones
+            for (int i = 0; i < numSkipBlocks - 1; i++) {
+                // get first docID after the block
+                int docId = postingListDocIds.get(blockSize * (i + 1));
+                //TODO useless right?
+                //int frequency = postingListFrequencies.get(blockSize * (i + 1));
                 docIdsSkipPointers.add(docId);
-                frequenciesSkipPointers.add(frequency);
+                frequenciesSkipPointers.add(docId);
                 // from is inclusive, to is exclusive
-                int docIdOffset = Utils.getEncodingLength(this.getPostingListDocIds().subList((i * Constants.NUM_POSTINGS_PER_BLOCK) , ((i + 1) * Constants.NUM_POSTINGS_PER_BLOCK)));
-                int frequencyOffset = Utils.getEncodingLength(this.getPostingListFrequencies().subList((i * Constants.NUM_POSTINGS_PER_BLOCK), ((i + 1) * Constants.NUM_POSTINGS_PER_BLOCK)));
+                int docIdOffset = Utils.getEncodingLength(this.getPostingListDocIds().subList((i * blockSize) , ((i + 1) * blockSize)));
+                int frequencyOffset = Utils.getEncodingLength(this.getPostingListFrequencies().subList((i * blockSize), ((i + 1) * blockSize)));
                 docIdsSkipPointers.add(docIdOffset);
                 frequenciesSkipPointers.add(frequencyOffset);
             }
         }
 
+        //set inverted file offsets for this term
         this.setDocIdsOffset(docIDsFileOffset);
         this.setFrequenciesOffset(frequenciesFileOffset);
+
         // docIDs
         if (docIdsSkipPointers.size() > 0) {
             byte[] encodedDocIdsSkipPointers = Utils.encode(docIdsSkipPointers);
@@ -94,10 +107,11 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
             docIdsSize += encodedDocIdsSkipPointers.length;
             docIDStream.write(encodedDocIdsSkipPointers);
         }
-        //byte[] encodedDocIDs = Utils.encode(this.getPostingListDocIds());
+
         docIDsFileOffset += this.encodedDocIDs.length;
         docIdsSize += this.encodedDocIDs.length;
         docIDStream.write(this.encodedDocIDs);
+
         // frequencies
         if (frequenciesSkipPointers.size() > 0) {
             byte[] encodedFrequenciesSkipPointers = Utils.encode(frequenciesSkipPointers);
@@ -105,10 +119,11 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
             frequenciesSize += encodedFrequenciesSkipPointers.length;
             frequenciesStream.write(encodedFrequenciesSkipPointers);
         }
-        //byte[] encodedFrequencies = Utils.encode(this.getPostingListFrequencies());
+
         frequenciesFileOffset += this.encodedFrequencies.length;
         frequenciesSize += this.encodedFrequencies.length;
         frequenciesStream.write(this.encodedFrequencies);
+
         // lexicon
         lexiconStream.write(this.serialize());
     }

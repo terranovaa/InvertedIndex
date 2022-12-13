@@ -30,10 +30,8 @@ public final class Constants {
     public static final int LEXICON_ENTRY_SIZE = 144;
     // TODO to change too, doc_no max size is 20 chars ok? 20*6 + 2*4
     public static final int DOCUMENT_ENTRY_SIZE = 128;
-    //TODO useless now?
-    public static final int TERMS_TO_CACHE_DURING_MERGE = 10;
     // todo
-    public static final int NUM_POSTINGS_PER_BLOCK = 1024;
+    public static final int SKIP_POINTERS_THRESHOLD = 1024;
     public static final int MAX_TERM_LEN = 30;
 
 }
