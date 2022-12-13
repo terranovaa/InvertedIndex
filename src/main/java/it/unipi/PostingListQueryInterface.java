@@ -82,6 +82,8 @@ public class PostingListQueryInterface {
         if(docIDIncrement >= docIDMaxSize || frequenciesIncrement >= freqMaxSize)
             throw new TerminatedListException();
 
+        // TODO: Controllare skip pointers
+
         byte[] nextDocID = getVariableByte(postingsDocIdStream);
         currentDocID = Utils.decode(nextDocID).get(0);
         docIDIncrement += nextDocID.length;
@@ -92,11 +94,7 @@ public class PostingListQueryInterface {
     }
 
     public void nextGEQ(int docid) throws TerminatedListException{
-        while(true){
-            next();
-            if(getDocId() >= docid)
-                return;
-        }
+        //...
     }
 
     public int getDocId(){

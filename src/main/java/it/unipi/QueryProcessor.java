@@ -24,7 +24,7 @@ public class QueryProcessor {
 
     public QueryProcessor(){
         //loadDocumentTable();
-        loadLexicon();
+        //loadLexicon();
     }
 
     public void loadLexicon(){
@@ -149,15 +149,15 @@ public class QueryProcessor {
 
             // DEBUG
             while(true) {
-                //System.out.println("--Processing posting list regarding the term " + postingList.getTerm());
+                System.out.println("--Processing posting list regarding the term " + postingList.getTerm());
                 try {
                     postingList.next();
                 } catch (TerminatedListException e) {
                     System.out.println(e.getMessage());
                     break;
                 }
-                //System.out.println(postingList.getDocId());
-                //System.out.println(postingList.getFreq());
+                System.out.println(postingList.getDocId());
+                System.out.println(postingList.getFreq());
             }
             postingList.closeList();
         }
