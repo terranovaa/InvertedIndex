@@ -76,7 +76,6 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
             FileOutputStream outputDocIdsStream = new FileOutputStream(postingsDocIdsFile);
             FileOutputStream outputFrequenciesStream = new FileOutputStream(postingsFrequenciesFile);
             OutputStream outputLexiconStream = new BufferedOutputStream(new FileOutputStream(lexiconFile));
-
             int numberOfBlocks = currentBlock + 1;
             int nextBlock = 0;
 
@@ -141,21 +140,19 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
                     byte[] postingFrequencies = postingsFrequenciesStreams.get(blockIndex).readNBytes(nextBlockToMerge.getFrequenciesSize());
                     referenceLexiconTerm.mergeEncodedPostings(postingDocIDs, postingFrequencies);
 
-                    if(bytesRead[blockIndex] < Constants.LEXICON_ENTRY_SIZE) {
-                        //if before we read less than those bytes, the relative block is finished
-                        //blockIndex is not the index of the arraylist but an Integer object
+                    bytesRead[blockIndex] = lexiconStreams.get(blockIndex).readNBytes(nextLexiconEntry[blockIndex], 0, Constants.LEXICON_ENTRY_SIZE);
+                    nextTerm[blockIndex].deserialize(nextLexiconEntry[blockIndex]);
+                    if(bytesRead[blockIndex] < Constants.LEXICON_ENTRY_SIZE){
                         activeBlocks.remove(blockIndex);
-                    }
-                    if(activeBlocks.contains(blockIndex)){
-                        //read the next entry from the block
-                        bytesRead[blockIndex] = lexiconStreams.get(blockIndex).readNBytes(nextLexiconEntry[blockIndex], 0, Constants.LEXICON_ENTRY_SIZE);
-                        nextTerm[blockIndex].deserialize(nextLexiconEntry[blockIndex]);
                     }
                 }
                 referenceLexiconTerm.writeToDisk(outputDocIdsStream, outputFrequenciesStream, outputLexiconStream);
             }
 
             mergePartialDocumentTables();
+            outputDocIdsStream.close();
+            outputFrequenciesStream.close();
+            outputLexiconStream.close();
 
         } catch (IOException ioe){
             ioe.printStackTrace();
