@@ -90,7 +90,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
                 }
 
                 // DEBUG
-                if(currentDocId > 1050000){
+                if(currentDocId > 2000000){
                     break;
                 }
 

@@ -1,5 +1,6 @@
 package it.unipi;
-import it.unipi.exceptions.IllegalQueryType;
+import it.unipi.exceptions.IllegalQueryTypeException;
+import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.Document;
 import it.unipi.models.LexiconTermBinaryIndexing;
 import it.unipi.models.LexiconTermIndexing;
@@ -7,6 +8,7 @@ import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.TreeMap;
@@ -90,7 +92,7 @@ public class QueryProcessor {
                 String pid = "NaN";
                 try {
                     pid = processQuery(line);
-                } catch(IllegalQueryType e){
+                } catch(IllegalQueryTypeException e){
                     e.printStackTrace();
                     System.out.println("Input Format: [AND|OR] term1 ... termN");
                 }
@@ -103,7 +105,7 @@ public class QueryProcessor {
         }
     }
 
-    public String processQuery(String query) throws IllegalQueryType {
+    public String processQuery(String query) throws IllegalQueryTypeException {
         String[] tokens = tokenize(query);
 
         //TODO: remove duplicates?
@@ -114,52 +116,64 @@ public class QueryProcessor {
             tokens[i] = Utils.stemming(tokens[i]);
         }
         String result;
-        if(tokens[0].equals("and"))
-            result = conjunctiveQuery(Arrays.copyOfRange(tokens, 1, tokens.length));
-        else if (tokens[0].equals("or"))
-            result = disjunctiveQuery(Arrays.copyOfRange(tokens, 1, tokens.length));
-        else
-            throw new IllegalQueryType(tokens[0]);
+        PostingListQueryInterface[] postingLists = loadPostingLists(Arrays.copyOfRange(tokens, 1, tokens.length));
+        if(tokens[0].equals("and")) {
+            System.out.println("You have requested a conjunctive query with the following preprocessed tokens:");
+            printTokens(Arrays.copyOfRange(tokens, 1, tokens.length));
+            result = conjunctiveQuery(postingLists);
+        } else if (tokens[0].equals("or")) {
+            System.out.println("You have requested a disjunctive query with the following preprocessed tokens:");
+            printTokens(Arrays.copyOfRange(tokens, 1, tokens.length));
+            result = disjunctiveQuery(postingLists);
+        }
+        else throw new IllegalQueryTypeException(tokens[0]);
         return result;
     }
 
-    // tokens are normalized and stemmed
-    //TODO: your program must perform seeks on disk in order to read only those inverted lists from disk that correspond to query words, and then compute the result
 
-    public String conjunctiveQuery(String[] tokens){
-        System.out.println("You have requested a conjunctive query with the following preprocessed tokens:");
+    private void printTokens(String[] tokens){
         for(int i = 0; i < tokens.length; ++i)
             if(i < tokens.length-1)
                 System.out.print(tokens[i] + ", ");
             else
                 System.out.print(tokens[i]);
         System.out.println();
+    }
 
-        PostingListQueryInterface[] postingLists = loadPostingLists(tokens);
+    public String conjunctiveQuery(PostingListQueryInterface[] postingLists){
+        for(PostingListQueryInterface postingList : postingLists) {
+            postingList.openList();
+
+            // DEBUG
+            while(true) {
+                //System.out.println("--Processing posting list regarding the term " + postingList.getTerm());
+                try {
+                    postingList.next();
+                } catch (TerminatedListException e) {
+                    System.out.println(e.getMessage());
+                    break;
+                }
+                //System.out.println(postingList.getDocId());
+                //System.out.println(postingList.getFreq());
+            }
+            postingList.closeList();
+        }
         return "NaN";
     }
 
-    public String disjunctiveQuery(String[] tokens){
-        System.out.println("You have requested a disjunctive query with the following preprocessed tokens:");
-        for(int i = 0; i < tokens.length; ++i)
-            if(i < tokens.length-1)
-                System.out.print(tokens[i] + ", ");
-            else
-                System.out.print(tokens[i]);
-        System.out.println();
-
-        // TODO: Continue defining interface and reading from the disk
-        PostingListQueryInterface[] postingLists = loadPostingLists(tokens);
+    public String disjunctiveQuery(PostingListQueryInterface[] postingLists){
         return "NaN";
     }
 
     public PostingListQueryInterface[] loadPostingLists(String[] tokens){
-        // TODO: Continue defining interface and reading from the disk
-        PostingListQueryInterface[] pls = new PostingListQueryInterface[tokens.length];
-        for(String token: tokens){
-            LexiconTermIndexing lexiconTermIndexing = lexicon.get("token");
-            PostingListQueryInterface pl = new PostingListQueryInterface(token, lexiconTermIndexing);
+        ArrayList<PostingListQueryInterface> pls = new ArrayList<>();
+        for(int i = 0; i < tokens.length; ++i){
+            LexiconTermIndexing lexiconTerm= lexicon.get(tokens[i]);
+            if(lexiconTerm != null) {
+                PostingListQueryInterface pl = new PostingListQueryInterface(lexiconTerm);
+                pls.add(pl);
+            }else System.out.println("Term " + tokens[i] + " not in the lexicon, skipping it...");
         }
-        return pls;
+        return pls.toArray(new PostingListQueryInterface[pls.size()]);
     }
 }

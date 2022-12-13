@@ -68,7 +68,6 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
 
     @Override
     public void merge(){
-
         String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION;
         String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION;
         String lexiconFile = Constants.LEXICON_FILE_PATH + FILE_EXTENSION;

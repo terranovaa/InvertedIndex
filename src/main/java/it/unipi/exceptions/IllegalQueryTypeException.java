@@ -1,12 +1,12 @@
 package it.unipi.exceptions;
 
-public class IllegalQueryType extends Exception {
+public class IllegalQueryTypeException extends Exception {
 
-    public IllegalQueryType() {
+    public IllegalQueryTypeException() {
         super("Query type not supported...");
     }
 
-    public IllegalQueryType(String type) {
+    public IllegalQueryTypeException(String type) {
         super("Query of type " + type + " not supported...");
     }
 }
