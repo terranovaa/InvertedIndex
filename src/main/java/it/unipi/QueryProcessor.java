@@ -8,6 +8,9 @@ import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -168,12 +171,46 @@ public class QueryProcessor {
     public PostingListQueryInterface[] loadPostingLists(String[] tokens){
         ArrayList<PostingListQueryInterface> pls = new ArrayList<>();
         for(int i = 0; i < tokens.length; ++i){
-            LexiconTermIndexing lexiconTerm= lexicon.get(tokens[i]);
+            LexiconTermIndexing lexiconTerm= lexiconDiskSearch(tokens[i]);
             if(lexiconTerm != null) {
                 PostingListQueryInterface pl = new PostingListQueryInterface(lexiconTerm);
                 pls.add(pl);
             }else System.out.println("Term " + tokens[i] + " not in the lexicon, skipping it...");
         }
         return pls.toArray(new PostingListQueryInterface[pls.size()]);
+    }
+
+    private static LexiconTermBinaryIndexing lexiconDiskSearch(String term) {
+        try {
+            long fileSeekPointer;
+            FileChannel lexiconChannel = FileChannel.open(Paths.get(Constants.LEXICON_FILE_PATH + Constants.DAT_FORMAT));
+            int numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
+
+            LexiconTermBinaryIndexing currentEntry = new LexiconTermBinaryIndexing();
+            ByteBuffer buffer = ByteBuffer.allocate(Constants.LEXICON_ENTRY_SIZE);
+            int leftExtreme = 0;
+            int rightExtreme = numberOfTerms;
+
+            while(rightExtreme > leftExtreme){
+                fileSeekPointer = (leftExtreme + ((rightExtreme - leftExtreme) / 2)) * Constants.LEXICON_ENTRY_SIZE;
+                lexiconChannel.position(fileSeekPointer);
+                buffer.clear();
+                lexiconChannel.read(buffer);
+                //TODO to change
+                currentEntry.deserialize(buffer.array());
+                if(currentEntry.getTerm().compareTo(term) > 0){
+                    //we go left on the array
+                    rightExtreme = rightExtreme - (int)Math.ceil(((double)(rightExtreme - leftExtreme) / 2));
+                } else if (currentEntry.getTerm().compareTo(term) < 0) {
+                    //we go right on the array
+                    leftExtreme = leftExtreme + (int)Math.ceil(((double)(rightExtreme - leftExtreme) / 2));
+                } else {
+                    return currentEntry;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
