@@ -13,12 +13,14 @@ import java.util.*;
 
 public class PostingListInterfaceAlt {
 
-    private final FileChannel docIds;
-    private final FileChannel frequencies;
+    private final FileChannel docIdsChannel;
+    private final FileChannel freqChannel;
     private int currentDocID;
     private int currentFreq;
-    private int currentDocIdOffset;
-    private int currentFreqOffset;
+    private long currentDocIdOffset;
+    private long currentFreqOffset;
+    private final long docIdsStartingOffset;
+    private final long freqStartingOffset;
     private final int docIdsSize;
     private final int frequenciesSize;
 
@@ -35,8 +37,8 @@ public class PostingListInterfaceAlt {
         try (FileInputStream docIdsStream = new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + Constants.DAT_FORMAT);
              FileInputStream frequenciesStream = new FileInputStream(Constants.POSTINGS_FREQUENCIES_FILE_PATH + Constants.DAT_FORMAT)
         ){
-            docIds = docIdsStream.getChannel().position(lexiconTerm.getDocIdsOffset());
-            frequencies = frequenciesStream.getChannel().position(lexiconTerm.getFrequenciesOffset());
+            docIdsChannel = docIdsStream.getChannel().position(lexiconTerm.getDocIdsOffset());
+            freqChannel = frequenciesStream.getChannel().position(lexiconTerm.getFrequenciesOffset());
         } catch (IOException e) {
             e.printStackTrace();
             throw e;
@@ -47,8 +49,12 @@ public class PostingListInterfaceAlt {
         
         if (lexiconTerm.getDocumentFrequency() > Constants.SKIP_POINTERS_THRESHOLD) {
             // TODO load skip pointers in memory and update the current offsets
-            //docIds.position(docIds.position() + size of the skip blocks)
+            //docIdsChannel.position(docIdsChannel.position() + size of the skip blocks)
         }
+
+        // Need to do it after reading the skip blocks because the offset in the skip pointers is relative to the start of the actual posting list
+        docIdsStartingOffset = docIdsChannel.position();
+        freqStartingOffset = freqChannel.position();
     }
 
     public int getDocId() {
@@ -61,34 +67,40 @@ public class PostingListInterfaceAlt {
 
     public void closeList() {
         try {
-            docIds.close();
-            frequencies.close();
+            docIdsChannel.close();
+            freqChannel.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private Integer getNextInt(FileChannel channel) {
+    private List<Byte> getNextInt(FileChannel channel) {
         ArrayList<Byte> encodedInt = new ArrayList<>();
         // TODO should we just read a fixed number of bytes, maybe based on the total no of docs?
         ByteBuffer buffer = ByteBuffer.allocate(1);
         try {
             do {
                 channel.read(buffer);
-            } while (buffer.hasRemaining() && (buffer.array()[0] & 0xff) < 128);
+            } while ((buffer.array()[0] & 0xff) < 128);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return Utils.decode(encodedInt).get(0);
+
+        return encodedInt;
     }
 
     public void next() throws TerminatedListException, IOException {
 
         if (currentDocIdOffset >= docIdsSize || currentFreqOffset >= frequenciesSize)
             throw new TerminatedListException();
-        
-        currentDocID = getNextInt(docIds);
-        currentFreq = getNextInt(frequencies);
+
+        List<Byte> encodedDocId = getNextInt(docIdsChannel);
+        currentDocID = Utils.decode(encodedDocId).get(0);
+        currentDocIdOffset += encodedDocId.size();
+
+        List<Byte> encodedFreq = getNextInt(freqChannel);
+        currentFreq = Utils.decode(encodedFreq).get(0);
+        currentFreqOffset += encodedFreq.size();
     }
     
     public void nextGEQ(int docId) throws IOException, TerminatedListException {
@@ -99,9 +111,11 @@ public class PostingListInterfaceAlt {
         while (docIdsSkipPointersIt.hasNext() && freqSkipPointerIt.hasNext()) {
             Map.Entry<Integer, Integer> docIdsSkipPointer = docIdsSkipPointersIt.next();
             Map.Entry<Integer, Integer> freqSkipPointer = freqSkipPointerIt.next();
-            if (docIdsSkipPointer.getKey() < docId) {
-                docIds.position(docIds.position() + docIdsSkipPointer.getValue());
-                frequencies.position(frequencies.position() + freqSkipPointer.getValue());
+            // TODO need to check if it works
+            // the second check is done in order to avoid going back to a lower offset (I think)
+            if (docIdsSkipPointer.getKey() < docId && docIdsSkipPointer.getKey() > currentDocID) {
+                docIdsChannel.position(docIdsStartingOffset + docIdsSkipPointer.getValue());
+                freqChannel.position(freqStartingOffset + freqSkipPointer.getValue());
             } else break;
         }
 
