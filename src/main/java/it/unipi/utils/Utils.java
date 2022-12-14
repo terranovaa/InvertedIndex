@@ -145,6 +145,22 @@ public final class Utils {
         return numbers;
     }
 
+    public static ArrayList<Integer> decode(List<Byte> byteStream) {
+        ArrayList<Integer> numbers = new ArrayList<>();
+        int n = 0;
+        for (byte byteElem : byteStream) {
+            int unsignedByte = byteElem & 0xff;
+            if (unsignedByte < 128) {
+                n = 128 * n + unsignedByte;
+            } else {
+                n = 128 * n + (unsignedByte - 128);
+                numbers.add(n);
+                n = 0;
+            }
+        }
+        return numbers;
+    }
+
     //given an integer return the byte representation
     public static byte[] intToByteArray(int value) {
         return ByteBuffer.allocate(4).putInt(value).array();

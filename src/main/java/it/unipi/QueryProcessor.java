@@ -1,9 +1,9 @@
 package it.unipi;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import it.unipi.exceptions.IllegalQueryTypeException;
 import it.unipi.exceptions.TerminatedListException;
-import it.unipi.models.Document;
-import it.unipi.models.LexiconTermBinaryIndexing;
-import it.unipi.models.LexiconTermIndexing;
+import it.unipi.models.*;
 import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
@@ -19,66 +19,23 @@ import static it.unipi.utils.Utils.*;
 
 public class QueryProcessor {
     private final String[] QUIT_CODES = new String[]{"Q", "q", "QUIT", "quit", "EXIT", "exit"};
-    private final TreeMap<String, LexiconTermIndexing> lexicon = new TreeMap<>();
     private final HashMap<Integer, Document> documentTable = new HashMap<>();
 
+    private final Cache<Integer, Document> documentTableCache = Caffeine.newBuilder()
+            .maximumSize(1_000)
+            .build();
+
+    private final Cache<String, LexiconTerm> lexiconCache = Caffeine.newBuilder()
+            .maximumSize(1_000)
+            .build();
+
+    private final CollectionStatistics collectionStatistics;
+
     public QueryProcessor(){
+        // TODO load collection statistics
+        collectionStatistics = new CollectionStatistics();
         //loadDocumentTable();
         //loadLexicon();
-    }
-
-    public void loadLexicon(){
-        System.out.println("Loading the lexicon in memory....");
-        String lexiconInputFile = Constants.LEXICON_FILE_PATH + Constants.DAT_FORMAT;
-        FileInputStream lexiconStream;
-        try {
-            lexiconStream = new FileInputStream(lexiconInputFile);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-        byte[] nextLexiconEntry = new byte[Constants.LEXICON_ENTRY_SIZE];
-        LexiconTermBinaryIndexing nextLexicon;
-        int bytesRead = 0;
-        while(true) {
-            try {
-                bytesRead = lexiconStream.readNBytes(nextLexiconEntry, 0, Constants.LEXICON_ENTRY_SIZE);
-                if (bytesRead < Constants.LEXICON_ENTRY_SIZE)
-                    break;
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            nextLexicon = new LexiconTermBinaryIndexing();
-            nextLexicon.deserialize(nextLexiconEntry);
-            lexicon.put(nextLexicon.getTerm(), nextLexicon);
-        }
-        System.out.println("Lexicon read in memory..");
-    }
-
-    public void loadDocumentTable(){
-        System.out.println("Loading the document table in memory....");
-        String documentTableInputFile = Constants.DOCUMENT_TABLE_FILE_PATH + Constants.DAT_FORMAT;
-        FileInputStream documentTableStream;
-        try {
-            documentTableStream = new FileInputStream(documentTableInputFile);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-        byte[] nextDocumentEntry = new byte[Constants.DOCUMENT_ENTRY_SIZE];
-        Document nextDocument;
-        int bytesRead;
-        while(true) {
-            try {
-                bytesRead = documentTableStream.readNBytes(nextDocumentEntry, 0, Constants.DOCUMENT_ENTRY_SIZE);
-                if (bytesRead < Constants.LEXICON_ENTRY_SIZE)
-                    break;
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            nextDocument = new Document();
-            nextDocument.deserializeBinary(nextDocumentEntry);
-            documentTable.put(nextDocument.getDocId(), nextDocument);
-        }
-        System.out.println("Document table read in memory..");
     }
 
     public void commandLine(){
@@ -109,7 +66,8 @@ public class QueryProcessor {
     }
 
     public String processQuery(String query) throws IllegalQueryTypeException {
-        String[] tokens = tokenize(query);
+
+        String[] tokens = Utils.tokenize(query);
 
         //TODO: remove duplicates?
         for (int i = 1; i < tokens.length; ++i){
@@ -171,7 +129,7 @@ public class QueryProcessor {
     public PostingListQueryInterface[] loadPostingLists(String[] tokens){
         ArrayList<PostingListQueryInterface> pls = new ArrayList<>();
         for(int i = 0; i < tokens.length; ++i){
-            LexiconTermIndexing lexiconTerm= lexiconDiskSearch(tokens[i]);
+            LexiconTerm lexiconTerm = lexiconDiskSearch(tokens[i]);
             if(lexiconTerm != null) {
                 PostingListQueryInterface pl = new PostingListQueryInterface(lexiconTerm);
                 pls.add(pl);
@@ -180,7 +138,7 @@ public class QueryProcessor {
         return pls.toArray(new PostingListQueryInterface[pls.size()]);
     }
 
-    private static LexiconTermBinaryIndexing lexiconDiskSearch(String term) {
+    private static LexiconTerm lexiconDiskSearch(String term) {
         try {
             long fileSeekPointer;
             FileChannel lexiconChannel = FileChannel.open(Paths.get(Constants.LEXICON_FILE_PATH + Constants.DAT_FORMAT));

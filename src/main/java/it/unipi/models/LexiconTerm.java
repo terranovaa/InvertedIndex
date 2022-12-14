@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-abstract class LexiconTerm {
+public abstract class LexiconTerm {
 
     protected String term;
     //number of documents containing the term

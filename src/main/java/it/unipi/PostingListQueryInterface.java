@@ -3,7 +3,7 @@ package it.unipi;
 
 
 import it.unipi.exceptions.TerminatedListException;
-import it.unipi.models.LexiconTermIndexing;
+import it.unipi.models.LexiconTerm;
 import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
@@ -24,25 +24,22 @@ public class PostingListQueryInterface {
     int currentDocID;
     int currentFreq;
 
-    public PostingListQueryInterface(LexiconTermIndexing lexiconTermIndexing) {
-        docIDsFileOffset = lexiconTermIndexing.getDocIdsOffset();
-        docIDMaxSize = lexiconTermIndexing.getDocIdsSize();
-        frequenciesFileOffset = lexiconTermIndexing.getFrequenciesOffset();
-        freqMaxSize = lexiconTermIndexing.getFrequenciesSize();
-        term = lexiconTermIndexing.getTerm();
+    public PostingListQueryInterface(LexiconTerm lexiconTerm) {
+        docIDsFileOffset = lexiconTerm.getDocIdsOffset();
+        docIDMaxSize = lexiconTerm.getDocIdsSize();
+        frequenciesFileOffset = lexiconTerm.getFrequenciesOffset();
+        freqMaxSize = lexiconTerm.getFrequenciesSize();
+        term = lexiconTerm.getTerm();
     }
 
     public void openList(){
         try {
-            // TODO: se apriamo così lo stream, rischiamo che cacha i primi bytes? I think no
             frequenciesIncrement = 0;
             docIDIncrement = 0;
             postingsDocIdStream = new BufferedInputStream(new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + Constants.DAT_FORMAT));
             postingsFrequenciesStream = new BufferedInputStream(new FileInputStream(Constants.POSTINGS_FREQUENCIES_FILE_PATH + Constants.DAT_FORMAT));
             postingsDocIdStream.skip(docIDsFileOffset);
             postingsFrequenciesStream.skip(frequenciesFileOffset);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -60,16 +57,14 @@ public class PostingListQueryInterface {
     private byte[] getVariableByte(InputStream stream){
         ArrayList<Byte> array = new ArrayList<>();
         byte[] nextByte = new byte[1];
-        while(true){
+        do {
             try {
                 stream.readNBytes(nextByte, 0, 1);
                 array.add(nextByte[0]);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            if((nextByte[0] & 0xff) >= 128)
-                break;
-        }
+        } while ((nextByte[0] & 0xff) < 128);
         int n = array.size();
         byte[] out = new byte[n];
         for (int i = 0; i < n; i++) {
@@ -93,8 +88,8 @@ public class PostingListQueryInterface {
         frequenciesIncrement += nextFreq.length;
     }
 
-    public void nextGEQ(int docid) throws TerminatedListException{
-        //...
+    public void nextGEQ(int docId) throws TerminatedListException{
+        // TODO
     }
 
     public int getDocId(){
