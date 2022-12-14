@@ -16,6 +16,7 @@ public abstract class LexiconTerm {
     //number of total occurrences of the term
     protected int collectionFrequency;
 
+    // TODO maybe these are long?
     protected int docIdsOffset;
     protected int frequenciesOffset;
     protected int docIdsSize;
