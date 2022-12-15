@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public abstract class LexiconTerm {
+public class LexiconTerm {
 
     protected String term;
     //number of documents containing the term
@@ -16,7 +16,7 @@ public abstract class LexiconTerm {
     //number of total occurrences of the term
     protected int collectionFrequency;
 
-    // TODO maybe these are long?
+    // TODO change to long
     protected int docIdsOffset;
     protected int frequenciesOffset;
     protected int docIdsSize;
@@ -89,6 +89,7 @@ public abstract class LexiconTerm {
     }
 
     public byte[] serializeBinary() {
+        //TODO to change
         byte[] lexiconEntry = new byte[Constants.LEXICON_ENTRY_SIZE];
         //variable number of bytes
         byte[] entryTerm = term.getBytes(StandardCharsets.UTF_8);

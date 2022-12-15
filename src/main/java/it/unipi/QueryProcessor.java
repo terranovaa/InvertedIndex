@@ -65,7 +65,7 @@ public class QueryProcessor {
         }
     }
 
-    public String processQuery(String query) throws IllegalQueryTypeException {
+    public String processQuery(String query) throws IllegalQueryTypeException, IOException {
 
         String[] tokens = Utils.tokenize(query);
 
@@ -77,18 +77,18 @@ public class QueryProcessor {
             tokens[i] = Utils.stemming(tokens[i]);
         }
         String result;
-        PostingListQueryInterface[] postingLists = loadPostingLists(Arrays.copyOfRange(tokens, 1, tokens.length));
+        PostingListInterfaceAlt[] postingLists = loadPostingLists(Arrays.copyOfRange(tokens, 1, tokens.length));
         if(tokens[0].equals("and")) {
             System.out.println("You have requested a conjunctive query with the following preprocessed tokens:");
             printTokens(Arrays.copyOfRange(tokens, 1, tokens.length));
-            result = conjunctiveQuery(postingLists);
+            //result = conjunctiveQuery(postingLists);
         } else if (tokens[0].equals("or")) {
             System.out.println("You have requested a disjunctive query with the following preprocessed tokens:");
             printTokens(Arrays.copyOfRange(tokens, 1, tokens.length));
-            result = disjunctiveQuery(postingLists);
+            //result = disjunctiveQuery(postingLists);
         }
         else throw new IllegalQueryTypeException(tokens[0]);
-        return result;
+        return "NaN";
     }
 
 
@@ -101,41 +101,23 @@ public class QueryProcessor {
         System.out.println();
     }
 
-    public String conjunctiveQuery(PostingListQueryInterface[] postingLists){
-        for(PostingListQueryInterface postingList : postingLists) {
-            postingList.openList();
+    public void conjunctiveQuery(PostingListInterfaceAlt[] postingLists){
 
-            // DEBUG
-            while(true) {
-                System.out.println("--Processing posting list regarding the term " + postingList.getTerm());
-                try {
-                    postingList.next();
-                } catch (TerminatedListException e) {
-                    System.out.println(e.getMessage());
-                    break;
-                }
-                System.out.println(postingList.getDocId());
-                System.out.println(postingList.getFreq());
-            }
-            postingList.closeList();
-        }
-        return "NaN";
     }
 
-    public String disjunctiveQuery(PostingListQueryInterface[] postingLists){
-        return "NaN";
+    public void disjunctiveQuery(PostingListQueryInterface[] postingLists){
     }
 
-    public PostingListQueryInterface[] loadPostingLists(String[] tokens){
-        ArrayList<PostingListQueryInterface> pls = new ArrayList<>();
-        for(int i = 0; i < tokens.length; ++i){
-            LexiconTerm lexiconTerm = lexiconDiskSearch(tokens[i]);
-            if(lexiconTerm != null) {
-                PostingListQueryInterface pl = new PostingListQueryInterface(lexiconTerm);
+    public PostingListInterfaceAlt[] loadPostingLists(String[] tokens) throws IOException {
+        ArrayList<PostingListInterfaceAlt> pls = new ArrayList<>();
+        for (String token : tokens) {
+            LexiconTerm lexiconTerm = lexiconDiskSearch(token);
+            if (lexiconTerm != null) {
+                PostingListInterfaceAlt pl = new PostingListInterfaceAlt(lexiconTerm);
                 pls.add(pl);
-            }else System.out.println("Term " + tokens[i] + " not in the lexicon, skipping it...");
+            } else System.out.println("Term " + token + " not in the lexicon, skipping it...");
         }
-        return pls.toArray(new PostingListQueryInterface[pls.size()]);
+        return pls.toArray(new PostingListInterfaceAlt[0]);
     }
 
     private static LexiconTerm lexiconDiskSearch(String term) {
@@ -144,7 +126,7 @@ public class QueryProcessor {
             FileChannel lexiconChannel = FileChannel.open(Paths.get(Constants.LEXICON_FILE_PATH + Constants.DAT_FORMAT));
             int numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
 
-            LexiconTermBinaryIndexing currentEntry = new LexiconTermBinaryIndexing();
+            LexiconTerm currentEntry = new LexiconTerm();
             ByteBuffer buffer = ByteBuffer.allocate(Constants.LEXICON_ENTRY_SIZE);
             int leftExtreme = 0;
             int rightExtreme = numberOfTerms;
@@ -155,7 +137,7 @@ public class QueryProcessor {
                 buffer.clear();
                 lexiconChannel.read(buffer);
                 //TODO to change
-                currentEntry.deserialize(buffer.array());
+                currentEntry.deserializeBinary(buffer.array());
                 if(currentEntry.getTerm().compareTo(term) > 0){
                     //we go left on the array
                     rightExtreme = rightExtreme - (int)Math.ceil(((double)(rightExtreme - leftExtreme) / 2));

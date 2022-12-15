@@ -55,8 +55,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         int blockSize;
 
         //(doc id,offset) list for skip pointers
-        ArrayList<Integer> docIdsSkipPointers = new ArrayList<>();
-        ArrayList<Integer> frequenciesSkipPointers = new ArrayList<>();
+        ArrayList<Integer> skipPointers = new ArrayList<>();
 
         if (this.documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
             //decode posting list only if needed
@@ -67,19 +66,19 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
             blockSize = (int) Math.ceil(Math.sqrt(this.documentFrequency));
             numSkipBlocks = (int) Math.ceil((double)this.documentFrequency / (double)blockSize);
 
+            int docIdOffset = 0;
+            int frequencyOffset = 0;
+
             //Avoid inserting details about the last block, since they can be inferred from the previous ones
             for (int i = 0; i < numSkipBlocks - 1; i++) {
                 // get first docID after the block
                 int docId = postingListDocIds.get(blockSize * (i + 1));
-                //TODO useless right?
-                //int frequency = postingListFrequencies.get(blockSize * (i + 1));
-                docIdsSkipPointers.add(docId);
-                frequenciesSkipPointers.add(docId);
-                // from is inclusive, to is exclusive
-                int docIdOffset = Utils.getEncodingLength(this.getPostingListDocIds().subList((i * blockSize) , ((i + 1) * blockSize)));
-                int frequencyOffset = Utils.getEncodingLength(this.getPostingListFrequencies().subList((i * blockSize), ((i + 1) * blockSize)));
-                docIdsSkipPointers.add(docIdOffset);
-                frequenciesSkipPointers.add(frequencyOffset);
+                skipPointers.add(docId);
+                // in subList from is inclusive, to is exclusive
+                docIdOffset += Utils.getEncodingLength(this.getPostingListDocIds().subList((i * blockSize) , ((i + 1) * blockSize)));
+                frequencyOffset += Utils.getEncodingLength(this.getPostingListFrequencies().subList((i * blockSize), ((i + 1) * blockSize)));
+                skipPointers.add(docIdOffset);
+                skipPointers.add(frequencyOffset);
             }
         }
 
@@ -88,8 +87,8 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         this.setFrequenciesOffset(frequenciesFileOffset);
 
         // docIDs
-        if (docIdsSkipPointers.size() > 0) {
-            byte[] encodedDocIdsSkipPointers = Utils.encode(docIdsSkipPointers);
+        if (skipPointers.size() > 0) {
+            byte[] encodedDocIdsSkipPointers = Utils.intListToByteArray(skipPointers);
             docIDsFileOffset += encodedDocIdsSkipPointers.length;
             docIdsSize += encodedDocIdsSkipPointers.length;
             docIDStream.write(encodedDocIdsSkipPointers);
@@ -98,14 +97,6 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         docIDsFileOffset += this.encodedDocIDs.length;
         docIdsSize += this.encodedDocIDs.length;
         docIDStream.write(this.encodedDocIDs);
-
-        // frequencies
-        if (frequenciesSkipPointers.size() > 0) {
-            byte[] encodedFrequenciesSkipPointers = Utils.encode(frequenciesSkipPointers);
-            frequenciesFileOffset += encodedFrequenciesSkipPointers.length;
-            frequenciesSize += encodedFrequenciesSkipPointers.length;
-            frequenciesStream.write(encodedFrequenciesSkipPointers);
-        }
 
         frequenciesFileOffset += this.encodedFrequencies.length;
         frequenciesSize += this.encodedFrequencies.length;

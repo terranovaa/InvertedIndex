@@ -47,6 +47,6 @@ public class Main {
         indexer.merge();
         long endMerge = System.currentTimeMillis();
         System.out.println("Merged in " + (endMerge - startMerge) + " ms");
-        Utils.deleteTemporaryFolders();
+        //Utils.deleteTemporaryFolders();
     }
 }

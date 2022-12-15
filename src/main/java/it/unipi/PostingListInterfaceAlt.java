@@ -2,6 +2,7 @@ package it.unipi;
 
 import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.LexiconTerm;
+import it.unipi.models.SkipPointerEntry;
 import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
@@ -24,32 +25,35 @@ public class PostingListInterfaceAlt {
     private final int docIdsSize;
     private final int frequenciesSize;
 
-    private final LinkedHashMap<Integer, Integer> docIdsSkipPointers;
-    private final LinkedHashMap<Integer, Integer> frequenciesSkipPointers;
+    private final LinkedHashMap<Integer, SkipPointerEntry> skipPointers;
 
 
     // NOTE I think we should use the constructor AS openList(), otherwise the FileChannels cannot be final.
+    @SuppressWarnings("resource")
     public PostingListInterfaceAlt(LexiconTerm lexiconTerm) throws IOException {
         currentDocIdOffset = 0;
         currentFreqOffset = 0;
         docIdsSize = lexiconTerm.getDocIdsSize();
         frequenciesSize = lexiconTerm.getFrequenciesSize();
-        try (FileInputStream docIdsStream = new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + Constants.DAT_FORMAT);
-             FileInputStream frequenciesStream = new FileInputStream(Constants.POSTINGS_FREQUENCIES_FILE_PATH + Constants.DAT_FORMAT)
-        ){
-            docIdsChannel = docIdsStream.getChannel().position(lexiconTerm.getDocIdsOffset());
-            freqChannel = frequenciesStream.getChannel().position(lexiconTerm.getFrequenciesOffset());
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw e;
-        }
+        docIdsChannel = new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + Constants.DAT_FORMAT).getChannel().position(lexiconTerm.getDocIdsOffset());
+        freqChannel = new FileInputStream(Constants.POSTINGS_FREQUENCIES_FILE_PATH + Constants.DAT_FORMAT).getChannel().position(lexiconTerm.getFrequenciesOffset());
 
-        docIdsSkipPointers = new LinkedHashMap<>();
-        frequenciesSkipPointers = new LinkedHashMap<>();
+        skipPointers = new LinkedHashMap<>();
+
+        int documentFrequency = lexiconTerm.getDocumentFrequency();
         
-        if (lexiconTerm.getDocumentFrequency() > Constants.SKIP_POINTERS_THRESHOLD) {
-            // TODO load skip pointers in memory and update the current offsets
-            //docIdsChannel.position(docIdsChannel.position() + size of the skip blocks)
+        if (documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
+            int blockSize = (int) Math.ceil(Math.sqrt(documentFrequency));
+            int numSkipBlocks = (int) Math.ceil((double)documentFrequency / (double)blockSize);
+            ByteBuffer docIdsBuffer = ByteBuffer.allocate(numSkipBlocks * 12);
+            docIdsChannel.read(docIdsBuffer);
+            docIdsBuffer.position(0);
+            while (docIdsBuffer.hasRemaining()) {
+                int docId = docIdsBuffer.getInt();
+                int docIdOffset = docIdsBuffer.getInt();
+                int freqOffset = docIdsBuffer.getInt();
+                skipPointers.put(docId, new SkipPointerEntry(docIdOffset, freqOffset));
+            }
         }
 
         // Need to do it after reading the skip blocks because the offset in the skip pointers is relative to the start of the actual posting list
@@ -105,17 +109,12 @@ public class PostingListInterfaceAlt {
     
     public void nextGEQ(int docId) throws IOException, TerminatedListException {
 
-        Iterator<Map.Entry<Integer, Integer>> docIdsSkipPointersIt = docIdsSkipPointers.entrySet().iterator();
-        Iterator<Map.Entry<Integer, Integer>> freqSkipPointerIt = frequenciesSkipPointers.entrySet().iterator();
-
-        while (docIdsSkipPointersIt.hasNext() && freqSkipPointerIt.hasNext()) {
-            Map.Entry<Integer, Integer> docIdsSkipPointer = docIdsSkipPointersIt.next();
-            Map.Entry<Integer, Integer> freqSkipPointer = freqSkipPointerIt.next();
+        for (Map.Entry<Integer, SkipPointerEntry> skipPointer : skipPointers.entrySet()) {
             // TODO need to check if it works
             // the second check is done in order to avoid going back to a lower offset (I think)
-            if (docIdsSkipPointer.getKey() < docId && docIdsSkipPointer.getKey() > currentDocID) {
-                docIdsChannel.position(docIdsStartingOffset + docIdsSkipPointer.getValue());
-                freqChannel.position(freqStartingOffset + freqSkipPointer.getValue());
+            if (skipPointer.getKey() < docId && skipPointer.getKey() > currentDocID) {
+                docIdsChannel.position(docIdsStartingOffset + skipPointer.getValue().docIdOffset());
+                freqChannel.position(freqStartingOffset + skipPointer.getValue().freqOffset());
             } else break;
         }
 

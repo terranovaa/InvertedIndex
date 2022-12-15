@@ -93,11 +93,6 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
                     lexiconEntry.addToPostingList(currentDocId);
                 }
 
-                // DEBUG
-                if(currentDocId > 2000000){
-                    break;
-                }
-
                 if (currentDocId % 100000 == 0) {
                     System.out.println(currentDocId);
                 }

@@ -166,6 +166,17 @@ public final class Utils {
         return ByteBuffer.allocate(4).putInt(value).array();
     }
 
+    public static byte[] intListToByteArray(List<Integer> values) {
+        byte[] bytes = new byte[values.size() * 4];
+        int i = 0;
+        for (Integer value: values) {
+            byte[] tempBytes = intToByteArray(value);
+            System.arraycopy(tempBytes, 0, bytes, (i * 4), 4);
+            i++;
+        }
+        return bytes;
+    }
+
     public static int byteArrayToInt(byte[] value, int startIndex) {
         //return ByteBuffer.wrap(value).getInt(startIndex);
         return ((value[startIndex] & 0xFF) << 24) |
