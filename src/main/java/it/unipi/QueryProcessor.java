@@ -1,41 +1,46 @@
 package it.unipi;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import it.unipi.exceptions.IllegalQueryTypeException;
-import it.unipi.exceptions.TerminatedListException;
-import it.unipi.models.*;
+import it.unipi.models.CollectionStatistics;
+import it.unipi.models.Document;
+import it.unipi.models.LexiconTerm;
 import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.TreeMap;
-import static it.unipi.utils.Utils.*;
+import java.util.concurrent.ExecutionException;
 
 public class QueryProcessor {
     private final String[] QUIT_CODES = new String[]{"Q", "q", "QUIT", "quit", "EXIT", "exit"};
-    private final HashMap<Integer, Document> documentTable = new HashMap<>();
 
-    private final Cache<Integer, Document> documentTableCache = Caffeine.newBuilder()
+    private final Cache<Integer, Document> documentTableCache = CacheBuilder.newBuilder()
             .maximumSize(1_000)
             .build();
 
-    private final Cache<String, LexiconTerm> lexiconCache = Caffeine.newBuilder()
+    private final LoadingCache<String, LexiconTerm> lexiconCache = CacheBuilder.newBuilder()
             .maximumSize(1_000)
-            .build();
-
+            .build(new CacheLoader<>() {
+                public LexiconTerm load(String term) {
+                    return lexiconDiskSearch(term);
+                }
+            });
     private final CollectionStatistics collectionStatistics;
 
     public QueryProcessor(){
         // TODO load collection statistics
         collectionStatistics = new CollectionStatistics();
         //loadDocumentTable();
-        //loadLexicon();
     }
 
     public void commandLine(){
@@ -55,6 +60,8 @@ public class QueryProcessor {
                 } catch(IllegalQueryTypeException e){
                     e.printStackTrace();
                     System.out.println("Input Format: [AND|OR] term1 ... termN");
+                } catch (ExecutionException e) {
+                    throw new RuntimeException(e);
                 }
                 if(!pid.equals("NaN"))
                     System.out.println("Resulting PID: " + pid);
@@ -65,7 +72,7 @@ public class QueryProcessor {
         }
     }
 
-    public String processQuery(String query) throws IllegalQueryTypeException, IOException {
+    public String processQuery(String query) throws IllegalQueryTypeException, IOException, ExecutionException {
 
         String[] tokens = Utils.tokenize(query);
 
@@ -76,8 +83,7 @@ public class QueryProcessor {
                 continue;
             tokens[i] = Utils.stemming(tokens[i]);
         }
-        String result;
-        PostingListInterfaceAlt[] postingLists = loadPostingLists(Arrays.copyOfRange(tokens, 1, tokens.length));
+        PostingListInterface[] postingLists = loadPostingLists(Arrays.copyOfRange(tokens, 1, tokens.length));
         if(tokens[0].equals("and")) {
             System.out.println("You have requested a conjunctive query with the following preprocessed tokens:");
             printTokens(Arrays.copyOfRange(tokens, 1, tokens.length));
@@ -101,23 +107,21 @@ public class QueryProcessor {
         System.out.println();
     }
 
-    public void conjunctiveQuery(PostingListInterfaceAlt[] postingLists){
+    public void conjunctiveQuery(PostingListInterface[] postingLists){
 
     }
 
-    public void disjunctiveQuery(PostingListQueryInterface[] postingLists){
+    public void disjunctiveQuery(PostingListInterface[] postingLists){
     }
 
-    public PostingListInterfaceAlt[] loadPostingLists(String[] tokens) throws IOException {
-        ArrayList<PostingListInterfaceAlt> pls = new ArrayList<>();
+    public PostingListInterface[] loadPostingLists(String[] tokens) throws IOException, ExecutionException {
+        ArrayList<PostingListInterface> pls = new ArrayList<>();
         for (String token : tokens) {
-            LexiconTerm lexiconTerm = lexiconDiskSearch(token);
-            if (lexiconTerm != null) {
-                PostingListInterfaceAlt pl = new PostingListInterfaceAlt(lexiconTerm);
-                pls.add(pl);
-            } else System.out.println("Term " + token + " not in the lexicon, skipping it...");
+            LexiconTerm lexiconTerm = lexiconCache.get(token);
+            PostingListInterface pl = new PostingListInterface(lexiconTerm);
+            pls.add(pl);
         }
-        return pls.toArray(new PostingListInterfaceAlt[0]);
+        return pls.toArray(new PostingListInterface[0]);
     }
 
     private static LexiconTerm lexiconDiskSearch(String term) {
@@ -132,7 +136,7 @@ public class QueryProcessor {
             int rightExtreme = numberOfTerms;
 
             while(rightExtreme > leftExtreme){
-                fileSeekPointer = (leftExtreme + ((rightExtreme - leftExtreme) / 2)) * Constants.LEXICON_ENTRY_SIZE;
+                fileSeekPointer = (long) (leftExtreme + ((rightExtreme - leftExtreme) / 2)) * Constants.LEXICON_ENTRY_SIZE;
                 lexiconChannel.position(fileSeekPointer);
                 buffer.clear();
                 lexiconChannel.read(buffer);

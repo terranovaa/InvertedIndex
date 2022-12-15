@@ -27,7 +27,8 @@ public final class Constants {
     public static final double MEMORY_FULL_THRESHOLD_PERCENTAGE = 0.75;
     public static final double MEMORY_ENOUGH_THRESHOLD_PERCENTAGE = 0.25;
 
-    public static final int LEXICON_ENTRY_SIZE = 144;
+    // 60 (term) + 4 (df) + 4 (cf) + 8 (docIdOffset) + 8 (freqOffset) + 4 (docIdSize) + 4 (docIdSize) = 92
+    public static final int LEXICON_ENTRY_SIZE = 92;
     // TODO to change too, doc_no max size is 20 chars ok? 20*6 + 2*4
     public static final int DOCUMENT_ENTRY_SIZE = 128;
     // todo

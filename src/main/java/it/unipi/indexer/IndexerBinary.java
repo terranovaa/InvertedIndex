@@ -6,6 +6,7 @@ import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -114,6 +115,12 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
                     if (minTerm == null || nextTerm[blockIndex].getTerm().compareTo(minTerm) < 0) {
                         minTerm = nextTerm[blockIndex].getTerm();
                     }
+                }
+
+                byte[] minTermBytes = minTerm.getBytes(StandardCharsets.UTF_8);
+                if (minTermBytes.length > longestTermLen) {
+                    longestTerm = minTerm;
+                    longestTermLen = minTermBytes.length;
                 }
 
                 for(Integer blockIndex: activeBlocks){

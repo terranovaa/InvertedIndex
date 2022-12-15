@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.tartarus.snowball.ext.englishStemmer;
@@ -19,6 +20,10 @@ import static java.lang.Math.log;
 public final class Utils {
     private static final HashSet<String> stopWords;
     private static final englishStemmer englishStemmer = new englishStemmer();
+
+    static Pattern punctuationRegex = Pattern.compile("[^a-zA-Z0-9\\u00C0-\\u00FF]");
+
+    static Pattern splitRegex = Pattern.compile(" +");
 
     static {
         try {
@@ -76,11 +81,12 @@ public final class Utils {
     public static String[] tokenize(String document){
         // normalization
         document = document.toLowerCase();
-        // TODO: more complex tokenization? Like BPE?
         //remove punctuation and strange characters
-        document = document.replaceAll("[^a-z0-9\\s]", " ");
+        //document = document.replaceAll("[^a-z0-9\\s]", " ");
+        // removing control characters
+        document = punctuationRegex.matcher(document).replaceAll(" ");
         //split in tokens
-        return document.split(" ");
+        return splitRegex.split(document);
     }
 
 
@@ -166,6 +172,10 @@ public final class Utils {
         return ByteBuffer.allocate(4).putInt(value).array();
     }
 
+    public static byte[] longToByteArray(long value) {
+        return ByteBuffer.allocate(8).putLong(value).array();
+    }
+
     public static byte[] intListToByteArray(List<Integer> values) {
         byte[] bytes = new byte[values.size() * 4];
         int i = 0;
@@ -178,10 +188,10 @@ public final class Utils {
     }
 
     public static int byteArrayToInt(byte[] value, int startIndex) {
-        //return ByteBuffer.wrap(value).getInt(startIndex);
-        return ((value[startIndex] & 0xFF) << 24) |
-                ((value[startIndex + 1] & 0xFF) << 16) |
-                ((value[startIndex + 2] & 0xFF) << 8 ) |
-                ((value[startIndex + 3] & 0xFF));
+        return ByteBuffer.wrap(value).getInt(startIndex);
+    }
+
+    public static long byteArrayToLong(byte[] value, int startIndex) {
+        return ByteBuffer.wrap(value).getLong(startIndex);
     }
 }

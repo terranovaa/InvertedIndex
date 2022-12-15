@@ -11,7 +11,7 @@ import java.io.IOException;
 public class Main {
 
     public static void main(String[] args) throws IOException {
-        args = new String[]{"query"};
+        args = new String[]{"index"};
         if (args.length >= 1) {
             if (args[0].equals("index")){
                 if (args.length >= 2) {

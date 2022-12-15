@@ -17,8 +17,8 @@ public class LexiconTerm {
     protected int collectionFrequency;
 
     // TODO change to long
-    protected int docIdsOffset;
-    protected int frequenciesOffset;
+    protected long docIdsOffset;
+    protected long frequenciesOffset;
     protected int docIdsSize;
     protected int frequenciesSize;
 
@@ -56,19 +56,19 @@ public class LexiconTerm {
         this.collectionFrequency = collectionFrequency;
     }
 
-    public void setDocIdsOffset(int docIdsOffset) {
+    public void setDocIdsOffset(long docIdsOffset) {
         this.docIdsOffset = docIdsOffset;
     }
 
-    public int getDocIdsOffset() {
+    public long getDocIdsOffset() {
         return docIdsOffset;
     }
 
-    public void setFrequenciesOffset(int frequenciesOffset) {
+    public void setFrequenciesOffset(long frequenciesOffset) {
         this.frequenciesOffset = frequenciesOffset;
     }
 
-    public int getFrequenciesOffset() {
+    public long getFrequenciesOffset() {
         return frequenciesOffset;
     }
 
@@ -89,31 +89,27 @@ public class LexiconTerm {
     }
 
     public byte[] serializeBinary() {
-        //TODO to change
+
         byte[] lexiconEntry = new byte[Constants.LEXICON_ENTRY_SIZE];
         //variable number of bytes
         byte[] entryTerm = term.getBytes(StandardCharsets.UTF_8);
-        //fixed number of bytes, 4 for each integer
+        //fixed number of bytes, 4 for each integer, 8 for each long
         byte[] entryDf = Utils.intToByteArray(documentFrequency);
         byte[] entryCf = Utils.intToByteArray(collectionFrequency);
-        byte[] entryDocIDOffset = Utils.intToByteArray(docIdsOffset);
-        byte[] entryFrequenciesOffset = Utils.intToByteArray(frequenciesOffset);
+        byte[] entryDocIDOffset = Utils.longToByteArray(docIdsOffset);
+        byte[] entryFrequenciesOffset = Utils.longToByteArray(frequenciesOffset);
         byte[] entryDocIDSize = Utils.intToByteArray(docIdsSize);
         byte[] entryFrequenciesSize = Utils.intToByteArray(frequenciesSize);
-        try {
-            //fill the first part of the buffer with the utf-8 representation of the term, leave the rest to 0
-            System.arraycopy(entryTerm, 0, lexiconEntry, 0, entryTerm.length);
-            //fill the last part of the buffer with statistics and offsets
-            System.arraycopy(entryDf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 24, 4);
-            System.arraycopy(entryCf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 20, 4);
-            System.arraycopy(entryDocIDOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 16, 4);
-            System.arraycopy(entryFrequenciesOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 12, 4);
-            System.arraycopy(entryDocIDSize, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 8, 4);
-            System.arraycopy(entryFrequenciesSize, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 4, 4);
-        } catch (ArrayIndexOutOfBoundsException e) {
-            //TODO fine tune LEXICON_ENTRY_SIZE using this exception
-            e.printStackTrace();
-        }
+
+        //fill the first part of the buffer with the utf-8 representation of the term, leave the rest to 0
+        System.arraycopy(entryTerm, 0, lexiconEntry, 0, entryTerm.length);
+        //fill the last part of the buffer with statistics and offsets
+        System.arraycopy(entryDf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 32, 4);
+        System.arraycopy(entryCf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 28, 4);
+        System.arraycopy(entryDocIDOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 24, 8);
+        System.arraycopy(entryFrequenciesOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 16, 8);
+        System.arraycopy(entryDocIDSize, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 8, 4);
+        System.arraycopy(entryFrequenciesSize, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 4, 4);
         return lexiconEntry;
     }
 
@@ -126,10 +122,10 @@ public class LexiconTerm {
         //parse only the first part of the buffer until the first byte equal 0
         term = new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
         //decode the rest of the buffer
-        documentFrequency = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 24);
-        collectionFrequency = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 20);
-        docIdsOffset = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 16);
-        frequenciesOffset = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 12);
+        documentFrequency = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 32);
+        collectionFrequency = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 28);
+        docIdsOffset = Utils.byteArrayToLong(buffer, Constants.LEXICON_ENTRY_SIZE - 24);
+        frequenciesOffset = Utils.byteArrayToLong(buffer, Constants.LEXICON_ENTRY_SIZE - 16);
         docIdsSize = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 8);
         frequenciesSize = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 4);
     }

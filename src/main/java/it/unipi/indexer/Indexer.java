@@ -1,5 +1,6 @@
 package it.unipi.indexer;
 
+import com.google.common.base.CharMatcher;
 import it.unipi.models.CollectionStatistics;
 import it.unipi.models.Document;
 import it.unipi.models.LexiconTermIndexing;
@@ -23,6 +24,9 @@ import java.util.function.Supplier;
 abstract public class Indexer <T extends LexiconTermIndexing> {
 
     //TODO: Collection statistics
+
+    protected String longestTerm;
+    protected int longestTermLen;
 
     // current doc id
     protected int currentDocId = 0;
@@ -53,7 +57,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
         BufferedReader bufferedReader;
         if (tarArchiveEntry != null) { //TODO: UTF8 or ASCII?
             // it uses MalformedInputException internally and replace the malformed character as default operation
-            bufferedReader = new BufferedReader(new InputStreamReader(tarArchiveInputStream, StandardCharsets.US_ASCII));
+            bufferedReader = new BufferedReader(new InputStreamReader(tarArchiveInputStream, StandardCharsets.UTF_8));
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 // check if memory available
@@ -78,10 +82,17 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
 
                 String[] tokens = Utils.tokenize(document);
                 for (String token: tokens){
+
                     if(Utils.invalidToken(token))
                         continue;
                     token = Utils.stemming(token);
                     collectionStatistics.incrementNumTotalTerms();
+
+                    byte[] minTermBytes = token.getBytes(StandardCharsets.UTF_8);
+                    if (minTermBytes.length > longestTermLen) {
+                        longestTerm = token;
+                        longestTermLen = minTermBytes.length;
+                    }
 
                     //check if the token is already in the lexicon, if not create new entry
                     T lexiconEntry;

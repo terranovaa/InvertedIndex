@@ -6,6 +6,8 @@ import it.unipi.utils.Utils;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
@@ -55,7 +57,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         int blockSize;
 
         //(doc id,offset) list for skip pointers
-        ArrayList<Integer> skipPointers = new ArrayList<>();
+        LinkedHashMap<Integer, SkipPointerEntry> skipPointers = new LinkedHashMap<>();
 
         if (this.documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
             //decode posting list only if needed
@@ -66,19 +68,17 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
             blockSize = (int) Math.ceil(Math.sqrt(this.documentFrequency));
             numSkipBlocks = (int) Math.ceil((double)this.documentFrequency / (double)blockSize);
 
-            int docIdOffset = 0;
-            int frequencyOffset = 0;
+            long docIdOffset = 0;
+            long frequencyOffset = 0;
 
             //Avoid inserting details about the last block, since they can be inferred from the previous ones
             for (int i = 0; i < numSkipBlocks - 1; i++) {
                 // get first docID after the block
                 int docId = postingListDocIds.get(blockSize * (i + 1));
-                skipPointers.add(docId);
                 // in subList from is inclusive, to is exclusive
                 docIdOffset += Utils.getEncodingLength(this.getPostingListDocIds().subList((i * blockSize) , ((i + 1) * blockSize)));
                 frequencyOffset += Utils.getEncodingLength(this.getPostingListFrequencies().subList((i * blockSize), ((i + 1) * blockSize)));
-                skipPointers.add(docIdOffset);
-                skipPointers.add(frequencyOffset);
+                skipPointers.put(docId, new SkipPointerEntry(docIdOffset, frequencyOffset));
             }
         }
 
@@ -88,10 +88,17 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
         // docIDs
         if (skipPointers.size() > 0) {
-            byte[] encodedDocIdsSkipPointers = Utils.intListToByteArray(skipPointers);
-            docIDsFileOffset += encodedDocIdsSkipPointers.length;
-            docIdsSize += encodedDocIdsSkipPointers.length;
-            docIDStream.write(encodedDocIdsSkipPointers);
+            byte[] skipPointersBytes = new byte[skipPointers.size() * 20];
+            int i = 0;
+            for (Map.Entry<Integer, SkipPointerEntry> skipPointer: skipPointers.entrySet()) {
+                System.arraycopy(Utils.intToByteArray(skipPointer.getKey()), 0, skipPointersBytes, i * 20, 4);
+                System.arraycopy(Utils.longToByteArray(skipPointer.getValue().docIdOffset()), 0, skipPointersBytes, (i * 20) + 4, 8);
+                System.arraycopy(Utils.longToByteArray(skipPointer.getValue().freqOffset()), 0, skipPointersBytes, (i * 20) + 12, 8);
+                i++;
+            }
+            docIDsFileOffset += skipPointersBytes.length;
+            docIdsSize += skipPointersBytes.length;
+            docIDStream.write(skipPointersBytes);
         }
 
         docIDsFileOffset += this.encodedDocIDs.length;

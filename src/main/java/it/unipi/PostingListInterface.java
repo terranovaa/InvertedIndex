@@ -12,8 +12,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.*;
 
-public class PostingListInterfaceAlt {
+public class PostingListInterface {
 
+    // TODO decide if we want to keep the FileChannel, or if we read all the posting list block into a ByteBuffer (let's compare the performance)
     private final FileChannel docIdsChannel;
     private final FileChannel freqChannel;
     private int currentDocID;
@@ -30,7 +31,7 @@ public class PostingListInterfaceAlt {
 
     // NOTE I think we should use the constructor AS openList(), otherwise the FileChannels cannot be final.
     @SuppressWarnings("resource")
-    public PostingListInterfaceAlt(LexiconTerm lexiconTerm) throws IOException {
+    public PostingListInterface(LexiconTerm lexiconTerm) throws IOException {
         currentDocIdOffset = 0;
         currentFreqOffset = 0;
         docIdsSize = lexiconTerm.getDocIdsSize();
@@ -50,8 +51,8 @@ public class PostingListInterfaceAlt {
             docIdsBuffer.position(0);
             while (docIdsBuffer.hasRemaining()) {
                 int docId = docIdsBuffer.getInt();
-                int docIdOffset = docIdsBuffer.getInt();
-                int freqOffset = docIdsBuffer.getInt();
+                long docIdOffset = docIdsBuffer.getLong();
+                long freqOffset = docIdsBuffer.getLong();
                 skipPointers.put(docId, new SkipPointerEntry(docIdOffset, freqOffset));
             }
         }
