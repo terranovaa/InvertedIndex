@@ -18,6 +18,8 @@ public final class Constants {
     public static final String DOCUMENT_TABLE_FILE_PATH = RESOURCES_PATH + "document_table";
     public static final String PARTIAL_DOCUMENT_TABLE_FILE_PATH = RESOURCES_PATH + "document_table/document_table";
 
+    public static final String COLLECTION_STATISTICS_FILE_PATH = RESOURCES_PATH + "collection_statistics";
+
     public static final String COLLECTION_PATH = "./collection/collection.tar.gz";
     public static final String STOPWORDS_PATH = RESOURCES_PATH + "stopwords.txt";
 
@@ -27,12 +29,12 @@ public final class Constants {
     public static final double MEMORY_FULL_THRESHOLD_PERCENTAGE = 0.75;
     public static final double MEMORY_ENOUGH_THRESHOLD_PERCENTAGE = 0.25;
 
-    // 60 (term) + 4 (df) + 4 (cf) + 8 (docIdOffset) + 8 (freqOffset) + 4 (docIdSize) + 4 (docIdSize) = 92
-    public static final int LEXICON_ENTRY_SIZE = 92;
+    // 20 (term) + 4 (df) + 4 (cf) + 8 (docIdOffset) + 8 (freqOffset) + 4 (docIdSize) + 4 (docIdSize) = 92
+    public static final int LEXICON_ENTRY_SIZE = 52;
     // TODO to change too, doc_no max size is 20 chars ok? 20*6 + 2*4
     public static final int DOCUMENT_ENTRY_SIZE = 128;
     // todo
     public static final int SKIP_POINTERS_THRESHOLD = 1024;
-    public static final int MAX_TERM_LEN = 30;
+    public static final int MAX_TERM_LEN = 20;
 
 }

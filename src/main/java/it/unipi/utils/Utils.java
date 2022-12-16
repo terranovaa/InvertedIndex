@@ -21,7 +21,7 @@ public final class Utils {
     private static final HashSet<String> stopWords;
     private static final englishStemmer englishStemmer = new englishStemmer();
 
-    static Pattern punctuationRegex = Pattern.compile("[^a-zA-Z0-9\\u00C0-\\u00FF]");
+    static Pattern cleanRegex = Pattern.compile("[^a-zA-Z0-9]");
 
     static Pattern splitRegex = Pattern.compile(" +");
 
@@ -31,14 +31,6 @@ public final class Utils {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public static String stemming(String token){
-        englishStemmer.setCurrent(token);
-        if (englishStemmer.stem()) {
-            token = englishStemmer.getCurrent();
-        }
-        return token;
     }
 
     public static void setupEnvironment(){
@@ -64,18 +56,12 @@ public final class Utils {
         }
     }
 
-    // TODO: Add logic, malformed lines?
-    public static boolean validDocument(String document){
-        // check empty page
-        return document.length() != 0;
+    public static boolean isAStopWord(String token){
+        return stopWords.contains(token);
     }
 
-    public static boolean invalidToken(String token){
-        //stop word removal & stemming
-        if(stopWords.contains(token)) //if the token is a stop word don't consider it
-            return true;
-
-        return token.length() > Constants.MAX_TERM_LEN;
+    public static String truncateToken(String token) {
+        return token.substring(0, Constants.MAX_TERM_LEN);
     }
 
     public static String[] tokenize(String document){
@@ -84,11 +70,18 @@ public final class Utils {
         //remove punctuation and strange characters
         //document = document.replaceAll("[^a-z0-9\\s]", " ");
         // removing control characters
-        document = punctuationRegex.matcher(document).replaceAll(" ");
+        document = cleanRegex.matcher(document).replaceAll(" ");
         //split in tokens
         return splitRegex.split(document);
     }
 
+    public static String stemToken(String token){
+        englishStemmer.setCurrent(token);
+        if (englishStemmer.stem()) {
+            token = englishStemmer.getCurrent();
+        }
+        return token;
+    }
 
     public static byte[] encodeNumber(int n) {
         if (n == 0) {
@@ -135,6 +128,7 @@ public final class Utils {
         return bytesLength;
     }
 
+    // TODO merge the following two functions
     public static ArrayList<Integer> decode(byte[] byteStream) {
         ArrayList<Integer> numbers = new ArrayList<>();
         int n = 0;

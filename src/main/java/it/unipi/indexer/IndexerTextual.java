@@ -70,8 +70,6 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
     @Override
     public void merge(){
 
-        long start = System.currentTimeMillis();
-
         String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION.toLowerCase();
         String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION.toLowerCase();
         String lexiconFile = Constants.LEXICON_FILE_PATH + FILE_EXTENSION.toLowerCase();
@@ -99,8 +97,6 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
 
             ArrayList<Integer> activeBlocks = new ArrayList<>();
 
-            String minTerm;
-
             for(int i=0; i < numberOfBlocks; i++){
                 activeBlocks.add(i);
                 //read from file
@@ -110,21 +106,8 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
             }
 
             while(activeBlocks.size() > 0){
-                ArrayList<Integer> lexiconsToMerge = new ArrayList<>();
 
-                minTerm = null;
-
-                for(Integer blockIndex: activeBlocks){
-                    if (minTerm == null || nextTerm[blockIndex].getTerm().compareTo(minTerm) < 0) {
-                        minTerm = nextTerm[blockIndex].getTerm();
-                    }
-                }
-
-                for(Integer blockIndex: activeBlocks){
-                    if(nextTerm[blockIndex].getTerm().equals(minTerm)){
-                        lexiconsToMerge.add(blockIndex);
-                    }
-                }
+                List<Integer> lexiconsToMerge = getLexiconsToMerge(activeBlocks, nextTerm);
 
                 collectionStatistics.incrementNumDistinctTerms();
 
@@ -165,9 +148,13 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
                 referenceLexiconTerm.writeToDisk(outputDocIdsStream, outputFrequenciesStream, outputLexiconStream);
             }
             mergePartialDocumentTables();
-            //TODO write collection statistics to disk
-            long end = System.currentTimeMillis();
-            System.out.println("Merged in " + (end - start) + " ms");
+
+            try (BufferedWriter bwCollectionStatistics = new BufferedWriter(new FileWriter(Constants.COLLECTION_STATISTICS_FILE_PATH + Constants.TXT_FORMAT))) {
+                bwCollectionStatistics.write(collectionStatistics.serializeToString());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
         } catch (IOException ioe){
             ioe.printStackTrace();
         }

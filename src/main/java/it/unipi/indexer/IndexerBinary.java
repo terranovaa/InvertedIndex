@@ -6,7 +6,6 @@ import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -105,29 +104,9 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
                 nextTerm[i].deserialize(nextLexiconEntry[i]);
             }
 
-            String minTerm;
-
             while(activeBlocks.size() > 0){
-                ArrayList<Integer> lexiconsToMerge = new ArrayList<>();
 
-                minTerm = null;
-                for(Integer blockIndex: activeBlocks){
-                    if (minTerm == null || nextTerm[blockIndex].getTerm().compareTo(minTerm) < 0) {
-                        minTerm = nextTerm[blockIndex].getTerm();
-                    }
-                }
-
-                byte[] minTermBytes = minTerm.getBytes(StandardCharsets.UTF_8);
-                if (minTermBytes.length > longestTermLen) {
-                    longestTerm = minTerm;
-                    longestTermLen = minTermBytes.length;
-                }
-
-                for(Integer blockIndex: activeBlocks){
-                    if(nextTerm[blockIndex].getTerm().equals(minTerm)){
-                        lexiconsToMerge.add(blockIndex);
-                    }
-                }
+                List<Integer> lexiconsToMerge = getLexiconsToMerge(activeBlocks, nextTerm);
 
                 collectionStatistics.incrementNumDistinctTerms();
 
@@ -160,6 +139,12 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
             outputDocIdsStream.close();
             outputFrequenciesStream.close();
             outputLexiconStream.close();
+
+            try (FileOutputStream fosCollectionStatistics = new FileOutputStream(Constants.COLLECTION_STATISTICS_FILE_PATH + Constants.DAT_FORMAT)){
+                fosCollectionStatistics.write(collectionStatistics.serializeBinary());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
         } catch (IOException ioe){
             ioe.printStackTrace();

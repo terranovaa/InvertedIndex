@@ -14,6 +14,8 @@ import java.util.*;
 
 public class PostingListInterface {
 
+    // Not sure if necessary
+    private final String term;
     // TODO decide if we want to keep the FileChannel, or if we read all the posting list block into a ByteBuffer (let's compare the performance)
     private final FileChannel docIdsChannel;
     private final FileChannel freqChannel;
@@ -32,6 +34,7 @@ public class PostingListInterface {
     // NOTE I think we should use the constructor AS openList(), otherwise the FileChannels cannot be final.
     @SuppressWarnings("resource")
     public PostingListInterface(LexiconTerm lexiconTerm) throws IOException {
+        term = lexiconTerm.getTerm();
         currentDocIdOffset = 0;
         currentFreqOffset = 0;
         docIdsSize = lexiconTerm.getDocIdsSize();
@@ -70,6 +73,10 @@ public class PostingListInterface {
         return currentFreq;
     }
 
+    public String getTerm() {
+        return term;
+    }
+
     public void closeList() {
         try {
             docIdsChannel.close();
@@ -94,10 +101,11 @@ public class PostingListInterface {
         return encodedInt;
     }
 
-    public void next() throws TerminatedListException, IOException {
+    // returns false is we are at the end of the posting list, otherwise true
+    public boolean next() {
 
         if (currentDocIdOffset >= docIdsSize || currentFreqOffset >= frequenciesSize)
-            throw new TerminatedListException();
+            return false;
 
         List<Byte> encodedDocId = getNextInt(docIdsChannel);
         currentDocID = Utils.decode(encodedDocId).get(0);
@@ -106,9 +114,11 @@ public class PostingListInterface {
         List<Byte> encodedFreq = getNextInt(freqChannel);
         currentFreq = Utils.decode(encodedFreq).get(0);
         currentFreqOffset += encodedFreq.size();
+
+        return true;
     }
     
-    public void nextGEQ(int docId) throws IOException, TerminatedListException {
+    public void nextGEQ(int docId) throws IOException {
 
         for (Map.Entry<Integer, SkipPointerEntry> skipPointer : skipPointers.entrySet()) {
             // TODO need to check if it works
@@ -124,4 +134,16 @@ public class PostingListInterface {
         }
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        PostingListInterface that = (PostingListInterface) o;
+        return term.equals(that.term);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(term);
+    }
 }
