@@ -46,7 +46,7 @@ public class PostingListInterface {
         if (documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
             int blockSize = (int) Math.ceil(Math.sqrt(documentFrequency));
             int numSkipBlocks = (int) Math.ceil((double)documentFrequency / (double)blockSize);
-            ByteBuffer docIdsBuffer = ByteBuffer.allocate(numSkipBlocks * 12);
+            ByteBuffer docIdsBuffer = ByteBuffer.allocate((numSkipBlocks - 1) * 20);
             docIdsChannel.read(docIdsBuffer);
             docIdsBuffer.position(0);
             while (docIdsBuffer.hasRemaining()) {
@@ -89,7 +89,10 @@ public class PostingListInterface {
         ByteBuffer buffer = ByteBuffer.allocate(1);
         try {
             do {
+                buffer.clear();
                 channel.read(buffer);
+                byte[] singleByte = buffer.array();
+                encodedInt.add(singleByte[0]);
             } while ((buffer.array()[0] & 0xff) < 128);
         } catch (IOException e) {
             e.printStackTrace();

@@ -141,6 +141,7 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
             outputLexiconStream.close();
 
             try (FileOutputStream fosCollectionStatistics = new FileOutputStream(Constants.COLLECTION_STATISTICS_FILE_PATH + Constants.DAT_FORMAT)){
+                collectionStatistics.setNumDocs(currentDocId);
                 fosCollectionStatistics.write(collectionStatistics.serializeBinary());
             } catch (IOException e) {
                 e.printStackTrace();

@@ -16,7 +16,6 @@ public class LexiconTerm {
     //number of total occurrences of the term
     protected int collectionFrequency;
 
-    // TODO change to long
     protected long docIdsOffset;
     protected long frequenciesOffset;
     protected int docIdsSize;
@@ -114,13 +113,7 @@ public class LexiconTerm {
     }
 
     public void deserializeBinary(byte[] buffer) {
-        //to decode the term, detect the position of the first byte equal 0
-        int endOfString = 0;
-        while(buffer[endOfString] != 0){
-            endOfString++;
-        }
-        //parse only the first part of the buffer until the first byte equal 0
-        term = new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
+        term = this.deserializeTerm(buffer);
         //decode the rest of the buffer
         documentFrequency = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 32);
         collectionFrequency = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 28);
@@ -128,6 +121,16 @@ public class LexiconTerm {
         frequenciesOffset = Utils.byteArrayToLong(buffer, Constants.LEXICON_ENTRY_SIZE - 16);
         docIdsSize = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 8);
         frequenciesSize = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 4);
+    }
+
+    public String deserializeTerm(byte[] buffer) {
+        //to decode the term, detect the position of the first byte equal 0
+        int endOfString = 0;
+        while(buffer[endOfString] != 0){
+            endOfString++;
+        }
+        //parse only the first part of the buffer until the first byte equal 0
+        return new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
     }
 
     public String[] serializeToString() {

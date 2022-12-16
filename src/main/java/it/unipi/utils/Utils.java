@@ -62,7 +62,7 @@ public final class Utils {
     }
 
     public static String truncateToken(String token) {
-        return token.substring(0, Constants.MAX_TERM_LEN);
+        return token.length() > Constants.MAX_TERM_LEN ? token.substring(0, Constants.MAX_TERM_LEN) : token;
     }
 
     public static String[] tokenize(String document){

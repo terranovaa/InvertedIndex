@@ -80,6 +80,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
                 if(document.length() == 0) continue;
 
                 // we add the document to the document table
+                //TODO here length includes also stopwords, is it correct?
                 documentTable.put(currentDocId, new Document(currentDocId, docNo, document.length()));
 
                 // We remove punctuation and split the document into tokens
