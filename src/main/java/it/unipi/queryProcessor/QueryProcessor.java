@@ -133,7 +133,8 @@ public class QueryProcessor {
 
             double score = 0;
 
-            for (PostingListInterface postingList: postingLists) {
+            for (Iterator<PostingListInterface> postingListIterator = postingLists.iterator(); postingListIterator.hasNext();) {
+                PostingListInterface postingList = postingListIterator.next();
                 if (postingList.getDocId() != currentDocId) continue;
                 int termFreq = postingList.getFreq();
                 int docFreq = lexiconCache.get(postingList.getTerm()).getDocumentFrequency();
@@ -143,7 +144,8 @@ public class QueryProcessor {
                 int avgDocLen = 100;
                 // compute partial score
                 score += ((double) termFreq / ((1 - Constants.B_BM25) + Constants.B_BM25 * ( (double) docLen / avgDocLen))) * Math.log((double) collectionStatistics.getNumDocs() / docFreq);
-                if (!postingList.next()) postingLists.remove(postingList);
+                // posting list end
+                if (!postingList.next()) postingListIterator.remove();
             }
 
             DocumentScore docScore = new DocumentScore(currentDocId, score);
@@ -199,13 +201,13 @@ public class QueryProcessor {
     public void disjunctiveQuery(PostingListInterface[] postingLists){
     }
 
-    public Set<PostingListInterface> loadPostingLists(String[] tokens) throws IOException, ExecutionException {
+    public Set<PostingListInterface> loadPostingLists(String[] tokens) throws IOException {
         HashSet<PostingListInterface> postingLists = new HashSet<>();
         for (String token : tokens) {
             LexiconTerm lexiconTerm;
             try {
                 lexiconTerm = lexiconCache.get(token);
-            } catch (Exception e) {
+            } catch (ExecutionException e) {
                 e.printStackTrace();
                 continue;
             }
