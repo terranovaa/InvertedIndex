@@ -2,10 +2,11 @@ package it.unipi.models;
 
 import javax.annotation.Nonnull;
 
-public record DocumentScore(int docId, int score) implements Comparable<DocumentScore> {
+public record DocumentScore(int docId, double score) implements Comparable<DocumentScore> {
 
     @Override
     public int compareTo(@Nonnull DocumentScore ds) {
-        return ds.score - this.score;
+        // TODO check if we need to swap the values
+        return Double.compare(this.score, ds.score);
     }
 }

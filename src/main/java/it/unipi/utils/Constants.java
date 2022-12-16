@@ -37,4 +37,7 @@ public final class Constants {
     public static final int SKIP_POINTERS_THRESHOLD = 1024;
     public static final int MAX_TERM_LEN = 20;
 
+    public static final double B_BM25 = 0.75;
+    public static final double K_BM25 = 1.2;
+
 }

@@ -17,6 +17,7 @@ import org.tartarus.snowball.ext.englishStemmer;
 
 import static java.lang.Math.log;
 
+// TODO split utils (ex. EncodingUtils, TextProcessingUtils...)
 public final class Utils {
     private static final HashSet<String> stopWords;
     private static final englishStemmer englishStemmer = new englishStemmer();

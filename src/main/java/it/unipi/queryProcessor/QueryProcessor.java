@@ -1,18 +1,16 @@
-package it.unipi;
+package it.unipi.queryProcessor;
 
-import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import it.unipi.exceptions.IllegalQueryTypeException;
+import it.unipi.exceptions.TermNotFoundException;
 import it.unipi.exceptions.TerminatedListException;
-import it.unipi.models.CollectionStatistics;
-import it.unipi.models.Document;
-import it.unipi.models.DocumentScore;
-import it.unipi.models.LexiconTerm;
+import it.unipi.models.*;
 import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
+import javax.annotation.Nonnull;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -26,20 +24,38 @@ import java.util.concurrent.ExecutionException;
 public class QueryProcessor {
     private final String[] QUIT_CODES = new String[]{"Q", "q", "QUIT", "quit", "EXIT", "exit"};
 
-    private final Cache<Integer, Document> documentTableCache = CacheBuilder.newBuilder()
+    private final LoadingCache<Integer, Document> documentTableCache = CacheBuilder.newBuilder()
             .maximumSize(1_000)
-            .build();
+            .build(new CacheLoader<>() {
+                @Nonnull
+                public Document load(@Nonnull Integer docId) {
+                    // Theoretically we should always find the doc entry, so this could be useless
+                    Document document = docTableDiskSearch(docId);
+                    if (document == null) {
+                        throw new RuntimeException();
+                    }
+                    return document;
+                }
+            });
 
     private final LoadingCache<String, LexiconTerm> lexiconCache = CacheBuilder.newBuilder()
             .maximumSize(1_000)
             .build(new CacheLoader<>() {
-                public LexiconTerm load(String term) {
-                    return lexiconDiskSearch(term);
+                @Nonnull
+                public LexiconTerm load(@Nonnull String term) throws TermNotFoundException {
+                    LexiconTerm lexiconTerm = lexiconDiskSearch(term);
+                    // query term may not exist in our Lexicon
+                    if (lexiconTerm == null) {
+                        throw new TermNotFoundException();
+                    }
+                    return lexiconTerm;
                 }
             });
     private final CollectionStatistics collectionStatistics;
 
-    private PriorityQueue<DocumentScore> docsPriorityQueue = new PriorityQueue<>(10); // depends on k
+    private final SortedSet<DocumentScore> docsPriorityQueue;
+
+    private int k;
 
     public QueryProcessor(){
         // loading collection statistics
@@ -50,6 +66,9 @@ public class QueryProcessor {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        k = 10;
+        docsPriorityQueue = new TreeSet<>();
     }
 
     public void commandLine(){
@@ -112,19 +131,30 @@ public class QueryProcessor {
 
         while (!postingLists.isEmpty()) {
 
-            int currentScore = 0;
+            double score = 0;
 
             for (PostingListInterface postingList: postingLists) {
                 if (postingList.getDocId() != currentDocId) continue;
+                int termFreq = postingList.getFreq();
+                int docFreq = lexiconCache.get(postingList.getTerm()).getDocumentFrequency();
+                // TODO doc_len -> implement disk seek function on Doc table
+                int docLen = 100;
+                // TODO average doc len -> 1/numDocs * Sum of doc_lens. I think we should compute it during indexing and save it in CollectionStatistics
+                int avgDocLen = 100;
                 // compute partial score
+                score += ((double) termFreq / ((1 - Constants.B_BM25) + Constants.B_BM25 * ( (double) docLen / avgDocLen))) * Math.log((double) collectionStatistics.getNumDocs() / docFreq);
                 if (!postingList.next()) postingLists.remove(postingList);
             }
 
-            // again k is not fixed I think
-            if (docsPriorityQueue.size() == 10) {
-                docsPriorityQueue.add(new DocumentScore(currentDocId, 0));
-                // removes the head of the queue, need to check if it's the right way
-                docsPriorityQueue.poll();
+            DocumentScore docScore = new DocumentScore(currentDocId, score);
+
+            if (docsPriorityQueue.size() < k) {
+                docsPriorityQueue.add(docScore);
+            } else {
+                if (score > docsPriorityQueue.last().score()) {
+                    docsPriorityQueue.add(docScore);
+                    docsPriorityQueue.remove(docsPriorityQueue.last());
+                }
             }
 
             if ((currentDocIdOpt = postingLists.stream()
@@ -172,7 +202,13 @@ public class QueryProcessor {
     public Set<PostingListInterface> loadPostingLists(String[] tokens) throws IOException, ExecutionException {
         HashSet<PostingListInterface> postingLists = new HashSet<>();
         for (String token : tokens) {
-            LexiconTerm lexiconTerm = lexiconCache.get(token);
+            LexiconTerm lexiconTerm;
+            try {
+                lexiconTerm = lexiconCache.get(token);
+            } catch (Exception e) {
+                e.printStackTrace();
+                continue;
+            }
             PostingListInterface pl = new PostingListInterface(lexiconTerm);
             postingLists.add(pl);
         }
@@ -181,6 +217,7 @@ public class QueryProcessor {
 
     private static LexiconTerm lexiconDiskSearch(String term) {
         try {
+            // TODO if the function is declared static does the FileChannel close? If yes we should open it in the constructor and keep it open maybe
             long fileSeekPointer;
             FileChannel lexiconChannel = FileChannel.open(Paths.get(Constants.LEXICON_FILE_PATH + Constants.DAT_FORMAT));
             int numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
@@ -211,5 +248,10 @@ public class QueryProcessor {
             e.printStackTrace();
         }
         return null;
+    }
+
+    private static Document docTableDiskSearch(int docId) {
+        // TODO the docIds go from 0 to N, so we should be able to load a Document just by reading at the right offset
+        return new Document();
     }
 }

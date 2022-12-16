@@ -14,6 +14,7 @@ import java.util.List;
 public class CollectionStatistics {
 
     private int numDocs;
+    // TODO I don't think we need these?
     private int numDistinctTerms;
     private int numTotalTerms;
 

@@ -1,8 +1,5 @@
-package it.unipi;
+package it.unipi.models;
 
-import it.unipi.exceptions.TerminatedListException;
-import it.unipi.models.LexiconTerm;
-import it.unipi.models.SkipPointerEntry;
 import it.unipi.utils.Constants;
 import it.unipi.utils.Utils;
 
