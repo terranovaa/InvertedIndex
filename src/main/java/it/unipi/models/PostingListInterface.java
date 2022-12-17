@@ -1,7 +1,7 @@
 package it.unipi.models;
 
 import it.unipi.utils.Constants;
-import it.unipi.utils.Utils;
+import it.unipi.utils.EncodingUtils;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -113,10 +113,10 @@ public class PostingListInterface {
         if (!docIdsBuffer.hasRemaining() || !freqBuffer.hasRemaining()) return false;
 
         List<Byte> encodedDocId = getNextInt(docIdsBuffer);
-        currentDocID = Utils.decode(encodedDocId).get(0);
+        currentDocID = EncodingUtils.decode(encodedDocId).get(0);
 
         List<Byte> encodedFreq = getNextInt(freqBuffer);
-        currentFreq = Utils.decode(encodedFreq).get(0);
+        currentFreq = EncodingUtils.decode(encodedFreq).get(0);
 
         return true;
     }

@@ -8,7 +8,7 @@ import it.unipi.exceptions.TermNotFoundException;
 import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.*;
 import it.unipi.utils.Constants;
-import it.unipi.utils.Utils;
+import it.unipi.utils.TextProcessingUtils;
 
 import javax.annotation.Nonnull;
 import java.io.*;
@@ -43,28 +43,20 @@ public class QueryProcessor {
                     return lexiconTerm;
                 }
             });
-    private final CollectionStatistics collectionStatistics;
+    private CollectionStatistics collectionStatistics;
 
     private final SortedSet<DocumentScore> docsPriorityQueue;
 
     private final MappedByteBuffer lexiconBuffer;
     private final MappedByteBuffer docTableBuffer;
 
-    private int k;
+    private final int k;
     private long startQuery;
 
     private final int numberOfTerms;
 
     public QueryProcessor() throws IOException{
-        // loading collection statistics
-        collectionStatistics = new CollectionStatistics();
-        try (FileInputStream fisCollectionStatistics = new FileInputStream(Constants.COLLECTION_STATISTICS_FILE_PATH + Constants.DAT_FORMAT)){
-            byte[] csBytes = fisCollectionStatistics.readNBytes(16);
-            collectionStatistics.deserializeBinary(csBytes);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
+        readCollectionStatistics();
         k = 10;
         docsPriorityQueue = new TreeSet<>();
         FileChannel lexiconChannel = FileChannel.open(Paths.get(Constants.LEXICON_FILE_PATH + Constants.DAT_FORMAT));
@@ -72,6 +64,16 @@ public class QueryProcessor {
         FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + Constants.DAT_FORMAT));
         docTableBuffer = docTableChannel.map(FileChannel.MapMode.READ_ONLY, 0, docTableChannel.size()).load();
         numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
+    }
+
+    private void readCollectionStatistics(){
+        collectionStatistics = new CollectionStatistics();
+        try (FileInputStream fisCollectionStatistics = new FileInputStream(Constants.COLLECTION_STATISTICS_FILE_PATH + Constants.DAT_FORMAT)){
+            byte[] csBytes = fisCollectionStatistics.readNBytes(16);
+            collectionStatistics.deserializeBinary(csBytes);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void commandLine(){
@@ -95,7 +97,8 @@ public class QueryProcessor {
                 } catch (ExecutionException | TerminatedListException e) {
                     throw new RuntimeException(e);
                 }
-                if(success) returnResults();
+                if(success)
+                    returnResults();
                 docsPriorityQueue.clear();
                 long end = System.currentTimeMillis();
                 System.out.println(((double)(end - startQuery)/1000) + " seconds");
@@ -108,17 +111,27 @@ public class QueryProcessor {
 
     public boolean processQuery(String query) throws IllegalQueryTypeException, IOException, ExecutionException, TerminatedListException {
 
-        String[] tokens = Utils.tokenize(query);
+        String[] tokens = TextProcessingUtils.tokenize(query);
 
         String queryType = tokens[0];
+        if(queryType.equals("and")) {
+            System.out.println("You have requested a conjunctive query with the following preprocessed tokens:");
+            printTokens(Arrays.copyOfRange(tokens, 1, tokens.length));
+        } else if (queryType.equals("or")) {
+            System.out.println("You have requested a disjunctive query with the following preprocessed tokens:");
+            printTokens(Arrays.copyOfRange(tokens, 1, tokens.length));
+        }
+        else throw new IllegalQueryTypeException(tokens[0]);
+
         HashSet<String> tokensSet = new HashSet<>();
         for (int i = 1; i < tokens.length; ++i){
             // skip first token specifying the type of the query
-            if(Utils.isAStopWord(tokens[i])) continue; // also remove stopwords
-            tokens[i] = Utils.truncateToken(tokens[i]);
-            tokens[i] = Utils.stemToken(tokens[i]);
+            if(TextProcessingUtils.isAStopWord(tokens[i])) continue; // also remove stopwords
+            tokens[i] = TextProcessingUtils.truncateToken(tokens[i]);
+            tokens[i] = TextProcessingUtils.stemToken(tokens[i]);
             tokensSet.add(tokens[i]);
         }
+
         // TODO Maybe change set to list for postingLists?
         Set<PostingListInterface> postingLists = loadPostingLists(tokensSet);
 
@@ -129,21 +142,29 @@ public class QueryProcessor {
                 postingListIterator.remove();
             }
         }
-
         int currentDocId;
 
         OptionalInt currentDocIdOpt;
 
-        if ((currentDocIdOpt = postingLists.stream()
-                .mapToInt(PostingListInterface::getDocId)
-                .min()).isEmpty()) {
-            return false;
-        } else {
-            currentDocId = currentDocIdOpt.getAsInt();
-        }
+        double score;
 
         while (!postingLists.isEmpty()) {
-            double score = BM25Scorer(currentDocId, postingLists);
+            if ((currentDocIdOpt = postingLists.stream()
+                    .mapToInt(PostingListInterface::getDocId)
+                    .min()).isEmpty()) {
+                return false;
+            } else {
+                currentDocId = currentDocIdOpt.getAsInt();
+            }
+            try {
+                score = BM25Scorer(currentDocId, postingLists, queryType.equals("and"));
+                if(score == -1) {
+                    continue;
+                }
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+
             DocumentScore docScore = new DocumentScore(currentDocId, score);
 
             if (docsPriorityQueue.size() < k) {
@@ -154,41 +175,26 @@ public class QueryProcessor {
                     docsPriorityQueue.remove(docsPriorityQueue.last());
                 }
             }
-
-            if ((currentDocIdOpt = postingLists.stream()
-                    .mapToInt(PostingListInterface::getDocId)
-                    .min()).isEmpty()) {
-                //posting lists are finished
-                return true;
-            } else {
-                currentDocId = currentDocIdOpt.getAsInt();
-            }
         }
 
         System.out.println(docsPriorityQueue);
-
-        /*
-        if(queryType.equals("and")) {
-            System.out.println("You have requested a conjunctive query with the following preprocessed tokens:");
-            printTokens(Arrays.copyOfRange(tokens, 1, tokens.length));
-            //result = conjunctiveQuery(postingLists);
-        } else if (queryType.equals("or")) {
-            System.out.println("You have requested a disjunctive query with the following preprocessed tokens:");
-            printTokens(Arrays.copyOfRange(tokens, 1, tokens.length));
-            //result = disjunctiveQuery(postingLists);
-        }
-        else throw new IllegalQueryTypeException(tokens[0]);
-
-         */
-        return false;
+        return true;
     }
 
-    private double BM25Scorer(int currentDocId, Set<PostingListInterface> postingLists) throws ExecutionException {
+    private double BM25Scorer(int currentDocId, Set<PostingListInterface> postingLists, boolean conjunctive) throws ExecutionException {
         double score = 0;
         Document currentDoc = documentTableCache.get(currentDocId);
         for (Iterator<PostingListInterface> postingListIterator = postingLists.iterator(); postingListIterator.hasNext();) {
             PostingListInterface postingList = postingListIterator.next();
-            if (postingList.getDocId() != currentDocId) continue;
+            if (conjunctive && postingList.getDocId() != currentDocId) {
+                // if query is conjunctive and posting list does not contain the docid, move to the next docid
+                if (!postingList.next()) {
+                    postingList.closeList();
+                    postingListIterator.remove();
+                }
+                return -1;
+            } else if(!conjunctive && postingList.getDocId() != currentDocId)
+                continue;
             int termFreq = postingList.getFreq();
             int docFreq = lexiconCache.get(postingList.getTerm()).getDocumentFrequency();
             // TODO I think we should compute it during indexing and save it in CollectionStatistics, also IDF?
@@ -210,7 +216,6 @@ public class QueryProcessor {
         }
     }
 
-
     private void printTokens(String[] tokens){
         for(int i = 0; i < tokens.length; ++i)
             if(i < tokens.length-1)
@@ -220,17 +225,10 @@ public class QueryProcessor {
         System.out.println();
     }
 
-    public void conjunctiveQuery(PostingListInterface[] postingLists){
-
-    }
-
-    public void disjunctiveQuery(PostingListInterface[] postingLists){
-    }
-
     public Set<PostingListInterface> loadPostingLists(Set<String> tokens) throws IOException {
         HashSet<PostingListInterface> postingLists = new HashSet<>();
         for (String token : tokens) {
-            if(Utils.isAStopWord(token)){
+            if(TextProcessingUtils.isAStopWord(token)){
                 continue;
             }
             LexiconTerm lexiconTerm;

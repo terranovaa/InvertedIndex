@@ -4,6 +4,7 @@ import it.unipi.exceptions.IllegalQueryTypeException;
 import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.Document;
 import it.unipi.models.LexiconTerm;
+import it.unipi.utils.TextProcessingUtils;
 import it.unipi.utils.Utils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,7 @@ public class QueryProcessorTests {
         String[] words = new String[]{"test", "found", "party", "yesterday", "along", "cry"};
         ArrayList<String> stemmedWords = new ArrayList<>();
         for (String word: words) {
-            stemmedWords.add(Utils.stemToken(word));
+            stemmedWords.add(TextProcessingUtils.stemToken(word));
         }
         LexiconTerm lexiconTerm;
         long start = System.currentTimeMillis();

@@ -3,8 +3,7 @@ package it.unipi.indexer;
 import it.unipi.models.Document;
 import it.unipi.models.LexiconTermBinaryIndexing;
 import it.unipi.utils.Constants;
-import it.unipi.utils.Utils;
-
+import it.unipi.utils.EncodingUtils;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +20,8 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
         String postingsFrequenciesFile = Constants.PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH + currentBlock + FILE_EXTENSION;
         String lexiconFile = Constants.PARTIAL_LEXICON_FILE_PATH + currentBlock + FILE_EXTENSION;
         String documentTableFile = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + currentBlock + FILE_EXTENSION;
+        String documentTableFileSplit1 = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + "_SPLIT1_" + currentBlock + FILE_EXTENSION;
+        String documentTableFileSplit2 = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + "_SPLIT2_" + currentBlock + FILE_EXTENSION;
 
         int docIDsFileOffset = 0;
         int frequenciesFileOffset = 0;
@@ -30,7 +31,9 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
         try (OutputStream postingsDocIdsStream = new BufferedOutputStream(new FileOutputStream(postingsDocIdsFile));
              OutputStream postingsFrequenciesStream = new BufferedOutputStream(new FileOutputStream(postingsFrequenciesFile));
              OutputStream lexiconStream = new BufferedOutputStream(new FileOutputStream(lexiconFile));
-             OutputStream documentTableStream = new BufferedOutputStream(new FileOutputStream(documentTableFile))
+             OutputStream documentTableStream = new BufferedOutputStream(new FileOutputStream(documentTableFile));
+             OutputStream documentTableStreamSplit1 = new BufferedOutputStream(new FileOutputStream(documentTableFileSplit1));
+             OutputStream documentTableStreamSplit2 = new BufferedOutputStream(new FileOutputStream(documentTableFileSplit2));
         ) {
             for (Map.Entry<String, LexiconTermBinaryIndexing> entry : lexicon.entrySet()) {
                 LexiconTermBinaryIndexing lexiconTerm = entry.getValue();
@@ -38,13 +41,13 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
                 lexiconTerm.setFrequenciesOffset(frequenciesFileOffset);
                 // docIDs
                 List<Integer> docIDs = lexiconTerm.getPostingListDocIds();
-                byte[] encodedDocIDs = Utils.encode(docIDs);
+                byte[] encodedDocIDs = EncodingUtils.encode(docIDs);
                 docIDsFileOffset += encodedDocIDs.length;
                 lexiconTerm.setDocIdsSize(encodedDocIDs.length);
                 postingsDocIdsStream.write(encodedDocIDs);
                 // frequencies
                 List<Integer> frequencies = lexiconTerm.getPostingListFrequencies();
-                byte[] encodedFrequencies = Utils.encode(frequencies);
+                byte[] encodedFrequencies = EncodingUtils.encode(frequencies);
                 frequenciesFileOffset += encodedFrequencies.length;
                 lexiconTerm.setFrequenciesSize(encodedFrequencies.length);
                 postingsFrequenciesStream.write(encodedFrequencies);
@@ -55,6 +58,12 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
             for (Map.Entry<Integer, Document> doc : documentTable.entrySet()) {
                 byte[] documentTableEntry = doc.getValue().serializeBinary();
                 documentTableStream.write(documentTableEntry);
+            }
+            // TEST, spliitted files
+            for (Map.Entry<Integer, Document> doc : documentTable.entrySet()) {
+                byte[][] documentTableEntry = doc.getValue().serializeBinarySplit();
+                documentTableStreamSplit1.write(documentTableEntry[0]);
+                documentTableStreamSplit2.write(documentTableEntry[1]);
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -134,6 +143,7 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
             }
 
             mergePartialDocumentTables();
+            mergePartialDocumentTablesSplit();
             outputDocIdsStream.close();
             outputFrequenciesStream.close();
             outputLexiconStream.close();

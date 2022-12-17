@@ -2,8 +2,8 @@ package it.unipi.utils;
 
 public final class Constants {
 
-    public static final String[] DIRECTORIES_PATHS = new String[]{"./resources", "./resources/document_table", "./resources/inverted_index/", "./resources/lexicon/" };
-    public static final String[] TEMPORARY_DIRECTORIES_PATHS = new String[]{"./resources/document_table", "./resources/inverted_index/", "./resources/lexicon/" };
+    public static final String[] DIRECTORIES_PATHS = new String[]{"./resources", "./resources/document_table/", "./resources/inverted_index/", "./resources/lexicon/" };
+    public static final String[] TEMPORARY_DIRECTORIES_PATHS = new String[]{"./resources/document_table/", "./resources/inverted_index/", "./resources/lexicon/" };
     private static final String RESOURCES_PATH = "./resources/";
     private static final String INVERTED_INDEX_PATH = "inverted_index/";
 
@@ -31,8 +31,13 @@ public final class Constants {
 
     // 20 (term) + 4 (df) + 4 (cf) + 8 (docIdOffset) + 8 (freqOffset) + 4 (docIdSize) + 4 (docIdSize) = 92
     public static final int LEXICON_ENTRY_SIZE = 52;
-    // TODO to change too, doc_no max size is 20 chars ok? 20*6 + 2*4
-    public static final int DOCUMENT_ENTRY_SIZE = 128;
+    // doc_no 30 byte + 2*4
+    public static final int DOCUMENT_ENTRY_SIZE = 38;
+    // docid + doclen
+    public static final int DOCUMENT_ENTRY_SIZE_SPLIT1 = 8;
+    // docid + docno
+    public static final int DOCUMENT_ENTRY_SIZE_SPLIT2 = 34;
+
     // todo
     public static final int SKIP_POINTERS_THRESHOLD = 1024;
     public static final int MAX_TERM_LEN = 20;

@@ -43,4 +43,5 @@ public class LexiconTermTextualIndexing extends LexiconTermIndexing {
                 lexiconStream.write(lexiconEntry[i]+",");
             else lexiconStream.write(lexiconEntry[i]+"\n");
     }
+
 }

@@ -1,7 +1,7 @@
 package it.unipi.models;
 
 import it.unipi.utils.Constants;
-import it.unipi.utils.Utils;
+import it.unipi.utils.EncodingUtils;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -26,6 +26,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
     public byte[] serialize() {
         return this.serializeBinary();
     }
+
 
     //decode a disk-based array of bytes representing a lexicon entry in a LexiconTermIndexing object
     public void deserialize(byte[] buffer) {
@@ -60,8 +61,8 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
         if (this.documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
             //decode posting list only if needed
-            this.setPostingListDocIds(Utils.decode(this.encodedDocIDs));
-            this.setPostingListFrequencies(Utils.decode(this.encodedFrequencies));
+            this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
+            this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
 
             //create sqrt(df) blocks of sqrt(df) size (rounded to the highest value when needed)
             blockSize = (int) Math.ceil(Math.sqrt(this.documentFrequency));
@@ -75,8 +76,8 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
                 // get first docID after the block
                 int docId = postingListDocIds.get(blockSize * (i + 1));
                 // in subList from is inclusive, to is exclusive
-                docIdOffset += Utils.getEncodingLength(this.getPostingListDocIds().subList((i * blockSize) , ((i + 1) * blockSize)));
-                frequencyOffset += Utils.getEncodingLength(this.getPostingListFrequencies().subList((i * blockSize), ((i + 1) * blockSize)));
+                docIdOffset += EncodingUtils.getEncodingLength(this.getPostingListDocIds().subList((i * blockSize) , ((i + 1) * blockSize)));
+                frequencyOffset += EncodingUtils.getEncodingLength(this.getPostingListFrequencies().subList((i * blockSize), ((i + 1) * blockSize)));
                 skipPointers.put(docId, new SkipPointerEntry(docIdOffset, frequencyOffset));
             }
         }
@@ -90,9 +91,9 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
             byte[] skipPointersBytes = new byte[skipPointers.size() * 20];
             int i = 0;
             for (Map.Entry<Integer, SkipPointerEntry> skipPointer: skipPointers.entrySet()) {
-                System.arraycopy(Utils.intToByteArray(skipPointer.getKey()), 0, skipPointersBytes, i * 20, 4);
-                System.arraycopy(Utils.longToByteArray(skipPointer.getValue().docIdOffset()), 0, skipPointersBytes, (i * 20) + 4, 8);
-                System.arraycopy(Utils.longToByteArray(skipPointer.getValue().freqOffset()), 0, skipPointersBytes, (i * 20) + 12, 8);
+                System.arraycopy(EncodingUtils.intToByteArray(skipPointer.getKey()), 0, skipPointersBytes, i * 20, 4);
+                System.arraycopy(EncodingUtils.longToByteArray(skipPointer.getValue().docIdOffset()), 0, skipPointersBytes, (i * 20) + 4, 8);
+                System.arraycopy(EncodingUtils.longToByteArray(skipPointer.getValue().freqOffset()), 0, skipPointersBytes, (i * 20) + 12, 8);
                 i++;
             }
             docIDsFileOffset += skipPointersBytes.length;

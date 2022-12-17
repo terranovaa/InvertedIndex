@@ -1,7 +1,7 @@
 package it.unipi.models;
 
 import it.unipi.utils.Constants;
-import it.unipi.utils.Utils;
+import it.unipi.utils.EncodingUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -60,8 +60,8 @@ public class Document {
          //variable number of bytes
          byte[] docNo = this.getDocNo().getBytes(StandardCharsets.UTF_8);
          //fixed number of bytes, 4 for each integer
-         byte[] docId = Utils.intToByteArray(this.getDocId());
-         byte[] docLength = Utils.intToByteArray(this.getLength());
+         byte[] docId = EncodingUtils.intToByteArray(this.getDocId());
+         byte[] docLength = EncodingUtils.intToByteArray(this.getLength());
 
          //fill the first part of the buffer with the utf-8 representation of the doc_no, leave the rest to 0
          System.arraycopy(docNo, 0, documentEntry, 0, docNo.length);
@@ -71,6 +71,32 @@ public class Document {
          return documentEntry;
     }
 
+    public byte[][] serializeBinarySplit() {
+        byte[][] output = new byte[2][];
+        //variable number of bytes
+
+        byte[] documentEntry = new byte[Constants.DOCUMENT_ENTRY_SIZE_SPLIT1];
+        //fixed number of bytes, 4 for each integer
+        byte[] docId = EncodingUtils.intToByteArray(this.getDocId());
+        byte[] docLength = EncodingUtils.intToByteArray(this.getLength());
+
+        //fill the last part of the buffer
+        System.arraycopy(docId, 0, documentEntry, Constants.DOCUMENT_ENTRY_SIZE_SPLIT1 - 8, 4);
+        System.arraycopy(docLength, 0, documentEntry, Constants.DOCUMENT_ENTRY_SIZE_SPLIT1 - 4, 4);
+        output[0] = documentEntry;
+
+        byte[] documentEntry2 = new byte[Constants.DOCUMENT_ENTRY_SIZE_SPLIT2];
+
+        //variable number of bytes
+        byte[] docNo = this.getDocNo().getBytes(StandardCharsets.UTF_8);
+
+        //fill the last part of the buffer
+        System.arraycopy(docNo, 0, documentEntry2, 0, docNo.length);
+        System.arraycopy(docId, 0, documentEntry2, Constants.DOCUMENT_ENTRY_SIZE_SPLIT2 - 4, 4);
+        output[1] = documentEntry2;
+        return output;
+    }
+
     //encode document object as an array of Strings
     public String[] serializeTextual() {
         ArrayList<String> list = new ArrayList<>();
@@ -78,6 +104,16 @@ public class Document {
         list.add(Integer.toString(docId));
         list.add(Integer.toString(length));
         return list.toArray(new String[0]);
+    }
+
+    public String[][] serializeTextualSplit() {
+        ArrayList<String> list = new ArrayList<>();
+        list.add(Integer.toString(docId));
+        list.add(Integer.toString(length));
+        ArrayList<String> list2 = new ArrayList<>();
+        list2.add(Integer.toString(docId));
+        list2.add(docNo);
+        return new String[][]{list.toArray(new String[0]), list2.toArray(new String[0])};
     }
 
 
@@ -91,9 +127,24 @@ public class Document {
         //parse only the first part of the buffer until the first byte equal 0
         docNo = new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
         //decode the rest of the buffer
-        docId = Utils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE - 8);
-        length = Utils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE - 4);
+        docId = EncodingUtils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE - 8);
+        length = EncodingUtils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE - 4);
     }
 
+    public void deserializeBinarySplit(byte[][] input) {
+        //to decode the docNo, detect the position of the first byte equal 0
+        byte[] buffer = input[0];
+        int endOfString = 0;
+        while(buffer[endOfString] != 0){
+            endOfString++;
+        }
 
+        //decode the rest of the buffer
+        docId = EncodingUtils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE - 8);
+        length = EncodingUtils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE - 4);
+
+        buffer = input[1];
+        //parse only the first part of the buffer until the first byte equal 0
+        docNo = new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
+    }
 }

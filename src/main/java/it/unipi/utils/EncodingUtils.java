@@ -1,90 +1,14 @@
 package it.unipi.utils;
 
-import java.io.File;
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
-import org.tartarus.snowball.ext.englishStemmer;
 
 import static java.lang.Math.log;
 
-// TODO split utils (ex. EncodingUtils, TextProcessingUtils...)
-public final class Utils {
-    private static final HashSet<String> stopWords;
-    private static final englishStemmer englishStemmer = new englishStemmer();
+public class EncodingUtils {
 
-    static Pattern cleanRegex = Pattern.compile("[^a-zA-Z0-9]");
-
-    static Pattern splitRegex = Pattern.compile(" +");
-
-    static {
-        try {
-            stopWords = new HashSet<>(Files.readAllLines(Paths.get(Constants.STOPWORDS_PATH)));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static void setupEnvironment(){
-        try {
-            for(String directory: Constants.DIRECTORIES_PATHS)
-                Files.createDirectories(Paths.get(directory));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void deleteTemporaryFolders(){
-
-        for(String directory: Constants.TEMPORARY_DIRECTORIES_PATHS) {
-            Path pathToBeDeleted = Paths.get(directory);
-            try (Stream<Path> files = Files.walk(pathToBeDeleted)) {
-                files.sorted(Comparator.reverseOrder())
-                        .map(Path::toFile)
-                        .forEach(File::delete);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    public static boolean isAStopWord(String token){
-        return stopWords.contains(token);
-    }
-
-    public static String truncateToken(String token) {
-        return token.length() > Constants.MAX_TERM_LEN ? token.substring(0, Constants.MAX_TERM_LEN) : token;
-    }
-
-    public static String[] tokenize(String document){
-        // normalization
-        document = document.toLowerCase();
-        //remove punctuation and strange characters
-        //document = document.replaceAll("[^a-z0-9\\s]", " ");
-        // removing control characters
-        document = cleanRegex.matcher(document).replaceAll(" ");
-        //split in tokens
-        return splitRegex.split(document);
-    }
-
-    public static String stemToken(String token){
-        englishStemmer.setCurrent(token);
-        if (englishStemmer.stem()) {
-            token = englishStemmer.getCurrent();
-        }
-        return token;
-    }
-
-    public static byte[] encodeNumber(int n) {
+    private static byte[] encodeNumber(int n) {
         if (n == 0) {
             return new byte[]{(byte) 128};
         }

@@ -1,7 +1,7 @@
 package it.unipi.models;
 
 import it.unipi.utils.Constants;
-import it.unipi.utils.Utils;
+import it.unipi.utils.EncodingUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -93,12 +93,12 @@ public class LexiconTerm {
         //variable number of bytes
         byte[] entryTerm = term.getBytes(StandardCharsets.UTF_8);
         //fixed number of bytes, 4 for each integer, 8 for each long
-        byte[] entryDf = Utils.intToByteArray(documentFrequency);
-        byte[] entryCf = Utils.intToByteArray(collectionFrequency);
-        byte[] entryDocIDOffset = Utils.longToByteArray(docIdsOffset);
-        byte[] entryFrequenciesOffset = Utils.longToByteArray(frequenciesOffset);
-        byte[] entryDocIDSize = Utils.intToByteArray(docIdsSize);
-        byte[] entryFrequenciesSize = Utils.intToByteArray(frequenciesSize);
+        byte[] entryDf = EncodingUtils.intToByteArray(documentFrequency);
+        byte[] entryCf = EncodingUtils.intToByteArray(collectionFrequency);
+        byte[] entryDocIDOffset = EncodingUtils.longToByteArray(docIdsOffset);
+        byte[] entryFrequenciesOffset = EncodingUtils.longToByteArray(frequenciesOffset);
+        byte[] entryDocIDSize = EncodingUtils.intToByteArray(docIdsSize);
+        byte[] entryFrequenciesSize = EncodingUtils.intToByteArray(frequenciesSize);
 
         //fill the first part of the buffer with the utf-8 representation of the term, leave the rest to 0
         System.arraycopy(entryTerm, 0, lexiconEntry, 0, entryTerm.length);
@@ -115,12 +115,12 @@ public class LexiconTerm {
     public void deserializeBinary(byte[] buffer) {
         term = this.deserializeTerm(buffer);
         //decode the rest of the buffer
-        documentFrequency = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 32);
-        collectionFrequency = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 28);
-        docIdsOffset = Utils.byteArrayToLong(buffer, Constants.LEXICON_ENTRY_SIZE - 24);
-        frequenciesOffset = Utils.byteArrayToLong(buffer, Constants.LEXICON_ENTRY_SIZE - 16);
-        docIdsSize = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 8);
-        frequenciesSize = Utils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 4);
+        documentFrequency = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 32);
+        collectionFrequency = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 28);
+        docIdsOffset = EncodingUtils.byteArrayToLong(buffer, Constants.LEXICON_ENTRY_SIZE - 24);
+        frequenciesOffset = EncodingUtils.byteArrayToLong(buffer, Constants.LEXICON_ENTRY_SIZE - 16);
+        docIdsSize = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 8);
+        frequenciesSize = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 4);
     }
 
     public String deserializeTerm(byte[] buffer) {
