@@ -25,7 +25,7 @@ public class QueryProcessorTests {
         long end;
         Document document;
 
-        for (int i = 0; i < 1_000_000; i++) {
+        for (int i = 0; i < 8_000_000; i++) {
             document = queryProcessor.docTableDiskSearch(i);
             Assertions.assertEquals(document.getDocId(), i);
         }
@@ -52,13 +52,24 @@ public class QueryProcessorTests {
 
     @Test
     void processQueryTest() throws IllegalQueryTypeException, IOException, ExecutionException, TerminatedListException {
-        long start = System.currentTimeMillis();
-        queryProcessor.processQuery("I found out just yesterday");
-        long end = System.currentTimeMillis();
-        System.out.println(((double)(end - start)/1000) + " seconds");
+        long start;
+        long end;
         start = System.currentTimeMillis();
         queryProcessor.processQuery("I found out just yesterday");
         end = System.currentTimeMillis();
-        System.out.println(((double)(end - start)/1000) + " seconds");
+        System.out.println(((double) (end - start) / 1000) + " seconds");
+        start = System.currentTimeMillis();
+        queryProcessor.processQuery("I found out just yesterday");
+        end = System.currentTimeMillis();
+        System.out.println(((double) (end - start) / 1000) + " seconds");
+
+        start = System.currentTimeMillis();
+        queryProcessor.processQuery("I found out just yesterday you had some problems during winter probably lexicon awards");
+        end = System.currentTimeMillis();
+        System.out.println(((double) (end - start) / 1000) + " seconds");
+        start = System.currentTimeMillis();
+        queryProcessor.processQuery("I found out just yesterday you had some problems during winter probably lexicon awards");
+        end = System.currentTimeMillis();
+        System.out.println(((double) (end - start) / 1000) + " seconds");
     }
 }

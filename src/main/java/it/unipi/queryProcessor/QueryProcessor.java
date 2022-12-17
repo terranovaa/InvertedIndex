@@ -12,7 +12,6 @@ import it.unipi.utils.Utils;
 
 import javax.annotation.Nonnull;
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
@@ -123,7 +122,13 @@ public class QueryProcessor {
         // TODO Maybe change set to list for postingLists?
         Set<PostingListInterface> postingLists = loadPostingLists(tokensSet);
 
-        postingLists.removeIf(postingList -> !postingList.next());
+        for (Iterator<PostingListInterface> postingListIterator = postingLists.iterator(); postingListIterator.hasNext();) {
+            PostingListInterface postingList = postingListIterator.next();
+            if (!postingList.next()) {
+                postingList.closeList();
+                postingListIterator.remove();
+            }
+        }
 
         int currentDocId;
 
@@ -160,6 +165,8 @@ public class QueryProcessor {
             }
         }
 
+        System.out.println(docsPriorityQueue);
+
         /*
         if(queryType.equals("and")) {
             System.out.println("You have requested a conjunctive query with the following preprocessed tokens:");
@@ -189,7 +196,10 @@ public class QueryProcessor {
             // compute partial score
             score += ((double) termFreq / ((1 - Constants.B_BM25) + Constants.B_BM25 * ( (double) currentDoc.getLength() / avgDocLen))) * Math.log((double) collectionStatistics.getNumDocs() / docFreq);
             // posting list end
-            if (!postingList.next()) postingListIterator.remove();
+            if (!postingList.next()) {
+                postingList.closeList();
+                postingListIterator.remove();
+            }
         }
         return score;
     }
