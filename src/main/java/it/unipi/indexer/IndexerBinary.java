@@ -108,8 +108,6 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
 
                 List<Integer> lexiconsToMerge = getLexiconsToMerge(activeBlocks, nextTerm);
 
-                collectionStatistics.incrementNumDistinctTerms();
-
                 //create a new lexiconTerm object for the min term
                 LexiconTermBinaryIndexing referenceLexiconTerm = new LexiconTermBinaryIndexing(nextTerm[lexiconsToMerge.get(0)].getTerm());
 

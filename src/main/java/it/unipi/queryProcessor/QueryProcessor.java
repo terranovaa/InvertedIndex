@@ -22,21 +22,16 @@ public class QueryProcessor {
     private final String[] QUIT_CODES = new String[]{"Q", "q", "QUIT", "quit", "EXIT", "exit"};
 
     private final LoadingCache<Integer, Document> documentTableCache = CacheBuilder.newBuilder()
-            .maximumSize(1_000)
+            .maximumSize(1_000_000)
             .build(new CacheLoader<>() {
                 @Nonnull
                 public Document load(@Nonnull Integer docId) {
-                    // Theoretically we should always find the doc entry, so this could be useless
-                    Document document = docTableDiskSearch(docId);
-                    if (document == null) {
-                        throw new RuntimeException();
-                    }
-                    return document;
+                    return docTableDiskSearch(docId);
                 }
             });
 
     private final LoadingCache<String, LexiconTerm> lexiconCache = CacheBuilder.newBuilder()
-            .maximumSize(1_000)
+            .maximumSize(10_000)
             .build(new CacheLoader<>() {
                 @Nonnull
                 public LexiconTerm load(@Nonnull String term) throws TermNotFoundException {
@@ -86,7 +81,7 @@ public class QueryProcessor {
                     System.out.println("Shutting down...");
                     break;
                 }
-                Boolean success = false;
+                boolean success = false;
                 try {
                     success = processQuery(line);
                 } catch(IllegalQueryTypeException e){
@@ -95,9 +90,8 @@ public class QueryProcessor {
                 } catch (ExecutionException | TerminatedListException e) {
                     throw new RuntimeException(e);
                 }
-                if(success)
-                    returnResults();
-                    docsPriorityQueue.clear();
+                if(success) returnResults();
+                docsPriorityQueue.clear();
                 long end = System.currentTimeMillis();
                 System.out.println(((double)(end - startQuery)/1000) + " seconds");
                 System.out.print("> ");
@@ -178,14 +172,14 @@ public class QueryProcessor {
 
     private double BM25Scorer(int currentDocId, Set<PostingListInterface> postingLists) throws ExecutionException {
         double score = 0;
-        Document currentDoc = docTableDiskSearch(currentDocId);
+        Document currentDoc = documentTableCache.get(currentDocId);
         for (Iterator<PostingListInterface> postingListIterator = postingLists.iterator(); postingListIterator.hasNext();) {
             PostingListInterface postingList = postingListIterator.next();
             if (postingList.getDocId() != currentDocId) continue;
             int termFreq = postingList.getFreq();
             int docFreq = lexiconCache.get(postingList.getTerm()).getDocumentFrequency();
             // TODO I think we should compute it during indexing and save it in CollectionStatistics, also IDF?
-            double avgDocLen = (double)collectionStatistics.getNumTotalTerms() / (double)collectionStatistics.getNumDocs();
+            double avgDocLen = collectionStatistics.getAvgDocLen();
             // compute partial score
             score += ((double) termFreq / ((1 - Constants.B_BM25) + Constants.B_BM25 * ( (double) currentDoc.getLength() / avgDocLen))) * Math.log((double) collectionStatistics.getNumDocs() / docFreq);
             // posting list end
@@ -236,7 +230,7 @@ public class QueryProcessor {
         return postingLists;
     }
 
-    private LexiconTerm lexiconDiskSearch(String term) {
+    public LexiconTerm lexiconDiskSearch(String term) {
         try {
             long fileSeekPointer;
             int numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
@@ -269,7 +263,7 @@ public class QueryProcessor {
         return null;
     }
 
-    private Document docTableDiskSearch(int docId) {
+    public Document docTableDiskSearch(int docId) {
         // TODO doc_lens seem unrealistic?
         Document doc = new Document();
         try{

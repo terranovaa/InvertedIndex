@@ -167,6 +167,10 @@ public final class Utils {
         return ByteBuffer.allocate(4).putInt(value).array();
     }
 
+    public static byte[] doubleToByteArray(double value) {
+        return ByteBuffer.allocate(8).putDouble(value).array();
+    }
+
     public static byte[] longToByteArray(long value) {
         return ByteBuffer.allocate(8).putLong(value).array();
     }
@@ -188,5 +192,9 @@ public final class Utils {
 
     public static long byteArrayToLong(byte[] value, int startIndex) {
         return ByteBuffer.wrap(value).getLong(startIndex);
+    }
+
+    public static double byteArrayToDouble(byte[] value, int startIndex) {
+        return ByteBuffer.wrap(value).getDouble(startIndex);
     }
 }

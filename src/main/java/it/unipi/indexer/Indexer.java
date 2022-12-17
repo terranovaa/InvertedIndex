@@ -36,6 +36,8 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
     protected final MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
     protected final String FILE_EXTENSION;
 
+    private int numTerms = 0;
+
     public Indexer(Supplier<? extends T> lexiconTermConstructor, String fileExtension) {
         this.lexiconTermConstructor = lexiconTermConstructor;
         FILE_EXTENSION = fileExtension;
@@ -79,17 +81,17 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
                 // if the document is empty we skip it
                 if(document.length() == 0) continue;
 
-                // we add the document to the document table
-                //TODO here length includes also stopwords, is it correct?
-                documentTable.put(currentDocId, new Document(currentDocId, docNo, document.length()));
+                int docLen = 0;
 
                 // We remove punctuation and split the document into tokens
                 String[] tokens = Utils.tokenize(document);
 
-                for (String token: tokens){
+                for (String token: tokens) {
 
                     //if the token is a stop word don't consider it
-                    if(Utils.isAStopWord(token)) continue;
+                    if (Utils.isAStopWord(token)) continue;
+
+                    docLen++;
 
                     // if the token is longer than 20 chars we truncate it
                     token = Utils.truncateToken(token);
@@ -97,11 +99,11 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
                     token = Utils.stemToken(token);
 
                     // updating collection statistics
-                    collectionStatistics.incrementNumTotalTerms();
+                    numTerms++;
 
                     //check if the token is already in the lexicon, if not create new entry
                     T lexiconEntry;
-                    if ((lexiconEntry = lexicon.get(token)) == null){
+                    if ((lexiconEntry = lexicon.get(token)) == null) {
                         lexiconEntry = lexiconTermConstructor.get();
                         lexiconEntry.setTerm(token);
                         lexicon.put(token, lexiconEntry);
@@ -114,8 +116,15 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
                     System.out.println(currentDocId);
                 }
 
+                if (docLen == 0) continue;
+
+                documentTable.put(currentDocId, new Document(currentDocId, docNo, docLen));
+
                 currentDocId++;
             }
+
+            collectionStatistics.setNumDocs(currentDocId);
+            collectionStatistics.setAvgDocLen((double) numTerms / currentDocId);
 
             writeToDisk();
             lexicon.clear();

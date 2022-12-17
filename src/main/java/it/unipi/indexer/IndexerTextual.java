@@ -109,8 +109,6 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
 
                 List<Integer> lexiconsToMerge = getLexiconsToMerge(activeBlocks, nextTerm);
 
-                collectionStatistics.incrementNumDistinctTerms();
-
                 //create a new lexiconTerm object for the min term
                 LexiconTermTextualIndexing referenceLexiconTerm = new LexiconTermTextualIndexing(nextTerm[lexiconsToMerge.get(0)].getTerm());
                 //merge everything
