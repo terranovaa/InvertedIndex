@@ -13,6 +13,7 @@ import it.unipi.utils.Utils;
 import javax.annotation.Nonnull;
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
 import java.util.*;
@@ -47,11 +48,13 @@ public class QueryProcessor {
 
     private final SortedSet<DocumentScore> docsPriorityQueue;
 
-    private final FileChannel lexiconChannel;
-    private final FileChannel docTableChannel;
+    private final MappedByteBuffer lexiconBuffer;
+    private final MappedByteBuffer docTableBuffer;
 
     private int k;
     private long startQuery;
+
+    private final int numberOfTerms;
 
     public QueryProcessor() throws IOException{
         // loading collection statistics
@@ -65,8 +68,11 @@ public class QueryProcessor {
 
         k = 10;
         docsPriorityQueue = new TreeSet<>();
-        lexiconChannel = FileChannel.open(Paths.get(Constants.LEXICON_FILE_PATH + Constants.DAT_FORMAT));
-        docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + Constants.DAT_FORMAT));
+        FileChannel lexiconChannel = FileChannel.open(Paths.get(Constants.LEXICON_FILE_PATH + Constants.DAT_FORMAT));
+        lexiconBuffer = lexiconChannel.map(FileChannel.MapMode.READ_ONLY, 0, lexiconChannel.size()).load();
+        FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + Constants.DAT_FORMAT));
+        docTableBuffer = docTableChannel.map(FileChannel.MapMode.READ_ONLY, 0, docTableChannel.size()).load();
+        numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
     }
 
     public void commandLine(){
@@ -231,50 +237,39 @@ public class QueryProcessor {
     }
 
     public LexiconTerm lexiconDiskSearch(String term) {
-        try {
-            long fileSeekPointer;
-            int numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
+        int pointer;
 
-            LexiconTerm currentEntry = new LexiconTerm();
-            ByteBuffer buffer = ByteBuffer.allocate(Constants.LEXICON_ENTRY_SIZE);
-            int leftExtreme = 0;
-            int rightExtreme = numberOfTerms;
+        LexiconTerm currentEntry = new LexiconTerm();
+        int leftExtreme = 0;
+        int rightExtreme = numberOfTerms;
 
-            while(rightExtreme > leftExtreme){
-                fileSeekPointer = (long) (leftExtreme + ((rightExtreme - leftExtreme) / 2)) * Constants.LEXICON_ENTRY_SIZE;
-                lexiconChannel.position(fileSeekPointer);
-                buffer.clear();
-                lexiconChannel.read(buffer);
-                String currentTerm = currentEntry.deserializeTerm(buffer.array());
-                if(currentTerm.compareTo(term) > 0){
-                    //we go left on the array
-                    rightExtreme = rightExtreme - (int)Math.ceil(((double)(rightExtreme - leftExtreme) / 2));
-                } else if (currentTerm.compareTo(term) < 0) {
-                    //we go right on the array
-                    leftExtreme = leftExtreme + (int)Math.ceil(((double)(rightExtreme - leftExtreme) / 2));
-                } else {
-                    currentEntry.deserializeBinary(buffer.array());
-                    return currentEntry;
-                }
+        while(rightExtreme > leftExtreme){
+            pointer = (leftExtreme + ((rightExtreme - leftExtreme) / 2)) * Constants.LEXICON_ENTRY_SIZE;
+            lexiconBuffer.position(pointer);
+            byte[] buffer = new byte[Constants.LEXICON_ENTRY_SIZE];
+            lexiconBuffer.get(buffer, 0, Constants.LEXICON_ENTRY_SIZE);
+            String currentTerm = currentEntry.deserializeTerm(buffer);
+            if(currentTerm.compareTo(term) > 0){
+                //we go left on the array
+                rightExtreme = rightExtreme - (int)Math.ceil(((double)(rightExtreme - leftExtreme) / 2));
+            } else if (currentTerm.compareTo(term) < 0) {
+                //we go right on the array
+                leftExtreme = leftExtreme + (int)Math.ceil(((double)(rightExtreme - leftExtreme) / 2));
+            } else {
+                currentEntry.deserializeBinary(buffer);
+                return currentEntry;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
         return null;
     }
 
     public Document docTableDiskSearch(int docId) {
-        // TODO doc_lens seem unrealistic?
         Document doc = new Document();
-        try{
-            long fileSeekPointer = (long) docId * Constants.DOCUMENT_ENTRY_SIZE;
-            docTableChannel.position(fileSeekPointer);
-            ByteBuffer buffer = ByteBuffer.allocate(Constants.DOCUMENT_ENTRY_SIZE);
-            docTableChannel.read(buffer);
-            doc.deserializeBinary(buffer.array());
-        }catch (IOException e) {
-            e.printStackTrace();
-        }
+        int fileSeekPointer = docId * Constants.DOCUMENT_ENTRY_SIZE;
+        docTableBuffer.position(fileSeekPointer);
+        byte[] result = new byte[Constants.DOCUMENT_ENTRY_SIZE];
+        docTableBuffer.get(result, 0, Constants.DOCUMENT_ENTRY_SIZE);
+        doc.deserializeBinary(result);
         return doc;
     }
 }

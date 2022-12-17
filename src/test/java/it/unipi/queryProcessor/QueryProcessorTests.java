@@ -4,10 +4,12 @@ import it.unipi.exceptions.IllegalQueryTypeException;
 import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.Document;
 import it.unipi.models.LexiconTerm;
+import it.unipi.utils.Utils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 
 public class QueryProcessorTests {
@@ -19,14 +21,33 @@ public class QueryProcessorTests {
 
     @Test
     void docTableDiskSearchTest() {
-        Document document = queryProcessor.docTableDiskSearch(0);
-        Assertions.assertEquals(document.getDocId(), 0);
+        long start = System.currentTimeMillis();
+        long end;
+        Document document;
+
+        for (int i = 0; i < 1_000_000; i++) {
+            document = queryProcessor.docTableDiskSearch(i);
+            Assertions.assertEquals(document.getDocId(), i);
+        }
+        end = System.currentTimeMillis();
+        System.out.println(((double)(end - start)/1000) + " seconds");
     }
 
     @Test
     void lexiconDiskSearchTest() {
-        LexiconTerm lexiconTerm = queryProcessor.lexiconDiskSearch("test");
-        Assertions.assertEquals(lexiconTerm.getTerm(), "test");
+        String[] words = new String[]{"test", "found", "party", "yesterday", "along", "cry"};
+        ArrayList<String> stemmedWords = new ArrayList<>();
+        for (String word: words) {
+            stemmedWords.add(Utils.stemToken(word));
+        }
+        LexiconTerm lexiconTerm;
+        long start = System.currentTimeMillis();
+        for (String word: stemmedWords) {
+            lexiconTerm = queryProcessor.lexiconDiskSearch(word);
+            Assertions.assertEquals(lexiconTerm.getTerm(), word);
+        }
+        long end = System.currentTimeMillis();
+        System.out.println(((double)(end - start)/1000) + " seconds");
     }
 
     @Test

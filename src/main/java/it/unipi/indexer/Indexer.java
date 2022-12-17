@@ -16,10 +16,7 @@ import java.lang.management.MemoryUsage;
 import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.function.Supplier;
 
 abstract public class Indexer <T extends LexiconTermIndexing> {
@@ -31,7 +28,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
     // Value needs to be changed
     protected final TreeMap<String, T> lexicon = new TreeMap<>();
     private final Supplier<? extends T> lexiconTermConstructor;
-    protected final HashMap<Integer, Document> documentTable = new HashMap<>();
+    protected final LinkedHashMap<Integer, Document> documentTable = new LinkedHashMap<>();
     protected final CollectionStatistics collectionStatistics = new CollectionStatistics();
     protected final MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
     protected final String FILE_EXTENSION;

@@ -12,7 +12,7 @@ import java.io.IOException;
 public class Main {
 
     public static void main(String[] args) throws IOException {
-        args = new String[]{"index"};
+        args = new String[]{"index", ".dat"};
         if (args.length >= 1) {
             if (args[0].equals("index")){
                 if (args.length >= 2) {
