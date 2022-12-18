@@ -5,7 +5,6 @@ import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.Document;
 import it.unipi.models.LexiconTerm;
 import it.unipi.utils.TextProcessingUtils;
-import it.unipi.utils.Utils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

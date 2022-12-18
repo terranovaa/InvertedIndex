@@ -8,6 +8,7 @@ import it.unipi.exceptions.TermNotFoundException;
 import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.*;
 import it.unipi.utils.Constants;
+import it.unipi.utils.ScoringFunctions;
 import it.unipi.utils.TextProcessingUtils;
 
 import javax.annotation.Nonnull;
@@ -49,15 +50,12 @@ public class QueryProcessor {
 
     private final MappedByteBuffer lexiconBuffer;
     private final MappedByteBuffer docTableBuffer;
-
-    private final int k;
     private long startQuery;
 
     private final int numberOfTerms;
 
     public QueryProcessor() throws IOException{
         readCollectionStatistics();
-        k = 10;
         docsPriorityQueue = new TreeSet<>();
         FileChannel lexiconChannel = FileChannel.open(Paths.get(Constants.LEXICON_FILE_PATH + Constants.DAT_FORMAT));
         lexiconBuffer = lexiconChannel.map(FileChannel.MapMode.READ_ONLY, 0, lexiconChannel.size()).load();
@@ -123,8 +121,14 @@ public class QueryProcessor {
         }
         else throw new IllegalQueryTypeException(tokens[0]);
 
+        int limit = tokens.length;
+        if (tokens.length > Constants.MAX_QUERY_LENGTH) {
+            System.out.println("Query too long, all the tokens after " + tokens[Constants.MAX_QUERY_LENGTH] + " are ignored");
+            limit = Constants.MAX_QUERY_LENGTH + 1;
+        }
+
         HashSet<String> tokensSet = new HashSet<>();
-        for (int i = 1; i < tokens.length; ++i){
+        for (int i = 1; i < limit; ++i){
             // skip first token specifying the type of the query
             if(TextProcessingUtils.isAStopWord(tokens[i])) continue; // also remove stopwords
             tokens[i] = TextProcessingUtils.truncateToken(tokens[i]);
@@ -157,7 +161,7 @@ public class QueryProcessor {
                 currentDocId = currentDocIdOpt.getAsInt();
             }
             try {
-                score = BM25Scorer(currentDocId, postingLists, queryType.equals("and"));
+                score = Scorer(currentDocId, postingLists, queryType.equals("and"));
                 if(score == -1) {
                     continue;
                 }
@@ -167,7 +171,7 @@ public class QueryProcessor {
 
             DocumentScore docScore = new DocumentScore(currentDocId, score);
 
-            if (docsPriorityQueue.size() < k) {
+            if (docsPriorityQueue.size() < Constants.NUMBER_OF_OUTPUT_DOCUMENTS) {
                 docsPriorityQueue.add(docScore);
             } else {
                 if (score > docsPriorityQueue.last().score()) {
@@ -177,11 +181,10 @@ public class QueryProcessor {
             }
         }
 
-        System.out.println(docsPriorityQueue);
         return true;
     }
 
-    private double BM25Scorer(int currentDocId, Set<PostingListInterface> postingLists, boolean conjunctive) throws ExecutionException {
+    private double Scorer(int currentDocId, Set<PostingListInterface> postingLists, boolean conjunctive) throws ExecutionException {
         double score = 0;
         Document currentDoc = documentTableCache.get(currentDocId);
         for (Iterator<PostingListInterface> postingListIterator = postingLists.iterator(); postingListIterator.hasNext();) {
@@ -195,12 +198,9 @@ public class QueryProcessor {
                 return -1;
             } else if(!conjunctive && postingList.getDocId() != currentDocId)
                 continue;
-            int termFreq = postingList.getFreq();
-            int docFreq = lexiconCache.get(postingList.getTerm()).getDocumentFrequency();
-            // TODO I think we should compute it during indexing and save it in CollectionStatistics, also IDF?
-            double avgDocLen = collectionStatistics.getAvgDocLen();
             // compute partial score
-            score += ((double) termFreq / ((1 - Constants.B_BM25) + Constants.B_BM25 * ( (double) currentDoc.getLength() / avgDocLen))) * Math.log((double) collectionStatistics.getNumDocs() / docFreq);
+            score += ScoringFunctions.BM25(currentDoc, postingList, lexiconCache.get(postingList.getTerm()), collectionStatistics);
+            //score += ScoringFunctions.TFIDF(postingList, lexiconCache.get(postingList.getTerm()), collectionStatistics);
             // posting list end
             if (!postingList.next()) {
                 postingList.closeList();
@@ -209,6 +209,8 @@ public class QueryProcessor {
         }
         return score;
     }
+
+
 
     private void returnResults() {
         for(DocumentScore ds : docsPriorityQueue){
@@ -273,11 +275,11 @@ public class QueryProcessor {
 
     public Document docTableDiskSearch(int docId) {
         Document doc = new Document();
-        int fileSeekPointer = docId * Constants.DOCUMENT_ENTRY_SIZE;
+        int fileSeekPointer = docId * Constants.DOCUMENT_ENTRY_SIZE_SPLIT1;
         docTableBuffer.position(fileSeekPointer);
-        byte[] result = new byte[Constants.DOCUMENT_ENTRY_SIZE];
-        docTableBuffer.get(result, 0, Constants.DOCUMENT_ENTRY_SIZE);
-        doc.deserializeBinary(result);
+        byte[] result = new byte[Constants.DOCUMENT_ENTRY_SIZE_SPLIT1];
+        docTableBuffer.get(result, 0, Constants.DOCUMENT_ENTRY_SIZE_SPLIT1);
+        doc.deserializeBinarySplit1(result);
         return doc;
     }
 }

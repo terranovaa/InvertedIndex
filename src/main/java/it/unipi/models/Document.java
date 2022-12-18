@@ -147,4 +147,9 @@ public class Document {
         //parse only the first part of the buffer until the first byte equal 0
         docNo = new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
     }
+
+    public void deserializeBinarySplit1(byte[] buffer){
+        docId = EncodingUtils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE_SPLIT1 - 8);
+        length = EncodingUtils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE_SPLIT1 - 4);
+    }
 }

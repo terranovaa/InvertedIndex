@@ -45,4 +45,7 @@ public final class Constants {
     public static final double B_BM25 = 0.75;
     public static final double K_BM25 = 1.2;
 
+    public static final int NUMBER_OF_OUTPUT_DOCUMENTS = 10;
+    public static final int MAX_QUERY_LENGTH = 32;
+
 }
