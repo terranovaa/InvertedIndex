@@ -1,6 +1,7 @@
 package it.unipi.queryProcessor;
 
 import it.unipi.exceptions.IllegalQueryTypeException;
+import it.unipi.exceptions.NoResultsFoundException;
 import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.Document;
 import it.unipi.models.LexiconTerm;
@@ -52,7 +53,7 @@ public class QueryProcessorTests {
     }
 
     @Test
-    void processQueryTest() throws IllegalQueryTypeException, IOException, ExecutionException, TerminatedListException {
+    void processQueryTest() throws IllegalQueryTypeException, IOException, ExecutionException, TerminatedListException, NoResultsFoundException {
         long start;
         long end;
         start = System.currentTimeMillis();

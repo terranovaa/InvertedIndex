@@ -4,6 +4,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import it.unipi.exceptions.IllegalQueryTypeException;
+import it.unipi.exceptions.NoResultsFoundException;
 import it.unipi.exceptions.TermNotFoundException;
 import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.*;
@@ -83,6 +84,8 @@ public class QueryProcessor {
                 } catch(IllegalQueryTypeException e){
                     e.printStackTrace();
                     System.out.println("Input Format: [AND|OR] term1 ... termN");
+                } catch (NoResultsFoundException e){
+                    e.printStackTrace();
                 } catch (ExecutionException | TerminatedListException e) {
                     throw new RuntimeException(e);
                 }
@@ -98,7 +101,7 @@ public class QueryProcessor {
         }
     }
 
-    public boolean processQuery(String query) throws IllegalQueryTypeException, IOException, ExecutionException, TerminatedListException {
+    public boolean processQuery(String query) throws IllegalQueryTypeException, IOException, ExecutionException, TerminatedListException, NoResultsFoundException {
 
         String[] tokens = TextProcessingUtils.tokenize(query);
 
@@ -151,6 +154,13 @@ public class QueryProcessor {
             } else {
                 currentDocId = currentDocIdOpt.getAsInt();
             }
+            if(queryType.equals("and") && postingLists.size() != tokensSet.size()){
+                //a posting list is finished (at least), all the next docIds have to be rejected
+                if(docsPriorityQueue.size() == 0){
+                    throw new NoResultsFoundException();
+                }
+                return true;
+            }
             try {
                 score = Scorer(currentDocId, postingLists, queryType.equals("and"));
                 if(score == -1) {
@@ -185,6 +195,14 @@ public class QueryProcessor {
                 if (!postingList.next()) {
                     postingList.closeList();
                     postingListIterator.remove();
+                }
+                //move also all the subsequent posting lists
+                while(postingListIterator.hasNext()){
+                    PostingListInterface nextPostingList = postingListIterator.next();
+                    if (!nextPostingList.next()) {
+                        nextPostingList.closeList();
+                        postingListIterator.remove();
+                    }
                 }
                 return -1;
             } else if(!conjunctive && postingList.getDocId() != currentDocId)
@@ -225,7 +243,6 @@ public class QueryProcessor {
             LexiconTerm lexiconTerm;
             try {
                 lexiconTerm = lexiconCache.get(token);
-                System.out.println("best score: " + lexiconTerm.getTermUpperBound());
             } catch (ExecutionException e) {
                 e.printStackTrace();
                 continue;
