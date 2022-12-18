@@ -1,6 +1,7 @@
 package it.unipi.models;
 
 import it.unipi.queryProcessor.QueryProcessor;
+import it.unipi.utils.DiskDataStructuresSearch;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,7 @@ public class PostingListInterfaceTest {
     @Test
     void skipBlocksTest() throws IOException {
 
-        LexiconTerm lexiconTerm = queryProcessor.lexiconDiskSearch("test");
+        LexiconTerm lexiconTerm = DiskDataStructuresSearch.lexiconDiskSearch("test", queryProcessor.numberOfTerms, queryProcessor.lexiconBuffer);
         PostingListInterface postingList = new PostingListInterface(lexiconTerm);
         LinkedHashMap<Integer, SkipPointerEntry> skipPointers = postingList.getSkipPointers();
         int docIdsStartingOffset = postingList.getDocIdsStartingOffset();

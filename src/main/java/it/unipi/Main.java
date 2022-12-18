@@ -66,6 +66,10 @@ public class Main {
         indexer.merge();
         long endMerge = System.currentTimeMillis();
         System.out.println("Merged in " + (endMerge - startMerge) + " ms");
+        long startRefineIndex = System.currentTimeMillis();
+        indexer.refineIndex();
+        long endRefineIndex = System.currentTimeMillis();
+        System.out.println("Refined in " + (endRefineIndex - startRefineIndex) + " ms");
         FileSystemUtils.deleteTemporaryFolders();
     }
 }

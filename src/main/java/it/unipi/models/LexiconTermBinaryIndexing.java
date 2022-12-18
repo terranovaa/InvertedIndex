@@ -1,10 +1,13 @@
 package it.unipi.models;
 
 import it.unipi.utils.Constants;
+import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.EncodingUtils;
+import it.unipi.utils.ScoringFunctions;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.MappedByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -52,6 +55,23 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         }
     }
 
+    public void computeTermUpperBound(MappedByteBuffer docTableBuffer, CollectionStatistics collectionStatistics) {
+        //TODO we are forced to decode postings...
+        this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
+        this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
+        this.termUpperBound = -1;
+        int i = 0;
+        for(Integer docID: postingListDocIds){
+            Document d = DiskDataStructuresSearch.docTableDiskSearch(docID, docTableBuffer);
+            double score = ScoringFunctions.BM25(d.getLength(), this.postingListFrequencies.get(i), this, collectionStatistics);
+            //double score = ScoringFunctions.TFIDF(this.postingListFrequencies.get(i), this, collectionStatistics);
+            if (score > termUpperBound){
+                termUpperBound = score;
+            }
+            i++;
+        }
+    }
+
     public void writeToDisk(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream) throws IOException {
         int numSkipBlocks;
         int blockSize;
@@ -60,7 +80,6 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         LinkedHashMap<Integer, SkipPointerEntry> skipPointers = new LinkedHashMap<>();
 
         if (this.documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
-            //decode posting list only if needed
             this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
             this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
 
@@ -112,4 +131,6 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         // lexicon
         lexiconStream.write(this.serialize());
     }
+
+
 }

@@ -12,6 +12,7 @@ public final class Constants {
     public static final String PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH = RESOURCES_PATH + INVERTED_INDEX_PATH + "postings_frequencies";
     public static final String POSTINGS_FREQUENCIES_FILE_PATH = RESOURCES_PATH + "postings_frequencies";
 
+    public static final String MERGED_LEXICON_FILE_PATH = RESOURCES_PATH + "merged_lexicon";
     public static final String LEXICON_FILE_PATH = RESOURCES_PATH + "lexicon";
     public static final String PARTIAL_LEXICON_FILE_PATH = RESOURCES_PATH + "lexicon/lexicon";
 
@@ -29,8 +30,8 @@ public final class Constants {
     public static final double MEMORY_FULL_THRESHOLD_PERCENTAGE = 0.75;
     public static final double MEMORY_ENOUGH_THRESHOLD_PERCENTAGE = 0.25;
 
-    // 20 (term) + 4 (df) + 4 (cf) + 8 (docIdOffset) + 8 (freqOffset) + 4 (docIdSize) + 4 (docIdSize) = 92
-    public static final int LEXICON_ENTRY_SIZE = 52;
+    // 20 (term) + 4 (df) + 4 (cf) + 8 (docIdOffset) + 8 (freqOffset) + 4 (docIdSize) + 4 (docIdSize) + 8 (termUpperBound) = 92
+    public static final int LEXICON_ENTRY_SIZE = 60;
     // doc_no 30 byte + 2*4
     public static final int DOCUMENT_ENTRY_SIZE = 38;
     // docid + doclen

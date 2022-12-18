@@ -54,7 +54,6 @@ public class Document {
 
     //encode document object as an array of bytes with fixed dimension
      public byte[] serializeBinary() {
-         // TODO to change too, doc_no max size is 20 chars ok? 20*6 + 2*4
 
          byte[] documentEntry = new byte[Constants.DOCUMENT_ENTRY_SIZE];
          //variable number of bytes

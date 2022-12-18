@@ -88,7 +88,7 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
 
         String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION.toLowerCase();
         String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION.toLowerCase();
-        String lexiconFile = Constants.LEXICON_FILE_PATH + FILE_EXTENSION.toLowerCase();
+        String lexiconFile = Constants.MERGED_LEXICON_FILE_PATH + FILE_EXTENSION.toLowerCase();
 
         try (BufferedWriter outputDocIdsStream = new BufferedWriter(new FileWriter(postingsDocIdsFile));
              BufferedWriter outputFrequenciesStream = new BufferedWriter(new FileWriter(postingsFrequenciesFile));
@@ -174,5 +174,9 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
         } catch (IOException ioe){
             ioe.printStackTrace();
         }
+    }
+
+    @Override
+    public void refineIndex() {
     }
 }

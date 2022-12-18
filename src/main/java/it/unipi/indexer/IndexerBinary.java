@@ -1,10 +1,16 @@
 package it.unipi.indexer;
 
+import it.unipi.models.CollectionStatistics;
 import it.unipi.models.Document;
 import it.unipi.models.LexiconTermBinaryIndexing;
+import it.unipi.models.SkipPointerEntry;
 import it.unipi.utils.Constants;
+import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.EncodingUtils;
 import java.io.*;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +65,7 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
                 byte[] documentTableEntry = doc.getValue().serializeBinary();
                 documentTableStream.write(documentTableEntry);
             }
-            // TEST, spliitted files
+            // TEST, split files
             for (Map.Entry<Integer, Document> doc : documentTable.entrySet()) {
                 byte[][] documentTableEntry = doc.getValue().serializeBinarySplit();
                 documentTableStreamSplit1.write(documentTableEntry[0]);
@@ -79,7 +85,7 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
     public void merge(){
         String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION;
         String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION;
-        String lexiconFile = Constants.LEXICON_FILE_PATH + FILE_EXTENSION;
+        String lexiconFile = Constants.MERGED_LEXICON_FILE_PATH + FILE_EXTENSION;
 
         try {
             FileOutputStream outputDocIdsStream = new FileOutputStream(postingsDocIdsFile);
@@ -149,7 +155,6 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
             outputLexiconStream.close();
 
             try (FileOutputStream fosCollectionStatistics = new FileOutputStream(Constants.COLLECTION_STATISTICS_FILE_PATH + Constants.DAT_FORMAT)){
-                collectionStatistics.setNumDocs(currentDocId);
                 fosCollectionStatistics.write(collectionStatistics.serializeBinary());
             } catch (IOException e) {
                 e.printStackTrace();
@@ -159,4 +164,58 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
             ioe.printStackTrace();
         }
     }
+
+    public void refineIndex() {
+        //take merged lexicon and compute term upper bounds
+        try (OutputStream outLexiconStream = new BufferedOutputStream(new FileOutputStream(Constants.LEXICON_FILE_PATH + FILE_EXTENSION));
+            InputStream inLexiconStream = new BufferedInputStream(new FileInputStream(Constants.MERGED_LEXICON_FILE_PATH + FILE_EXTENSION));
+            InputStream inDocIdStream = new BufferedInputStream(new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION));
+            InputStream inFrequencyStream = new BufferedInputStream(new FileInputStream(Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION))
+        )
+        {
+            //load collection statistics and open document table
+            CollectionStatistics cs = DiskDataStructuresSearch.readCollectionStatistics();
+            FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + "_SPLIT1_" + Constants.DAT_FORMAT));
+            MappedByteBuffer docTableBuffer = docTableChannel.map(FileChannel.MapMode.READ_ONLY, 0, docTableChannel.size()).load();
+
+            byte[] buffer = new byte[Constants.LEXICON_ENTRY_SIZE];
+            int bytesRead = inLexiconStream.read(buffer);
+
+
+            while(bytesRead == Constants.LEXICON_ENTRY_SIZE){
+                LexiconTermBinaryIndexing entry = new LexiconTermBinaryIndexing();
+                entry.deserializeBinary(buffer);
+
+                //jump over skip pointers if any
+                int dimSkipPointers = 0;
+                if (entry.getDocumentFrequency() > Constants.SKIP_POINTERS_THRESHOLD) {
+                    int blockSize = (int) Math.ceil(Math.sqrt(entry.getDocumentFrequency()));
+                    int numSkipBlocks = (int) Math.ceil((double)entry.getDocumentFrequency() / (double)blockSize);
+                    dimSkipPointers = 20 * (numSkipBlocks-1);
+                    //FileInputStream skip method doesn't work ¯\_(ツ)_/¯
+                    byte[] skip = new byte[dimSkipPointers];
+                    inDocIdStream.read(skip);
+                }
+
+                //get posting lists
+                byte[] postingDocIDs = inDocIdStream.readNBytes(entry.getDocIdsSize() - dimSkipPointers);
+                byte[] postingFrequencies = inFrequencyStream.readNBytes(entry.getFrequenciesSize());
+                entry.mergeEncodedPostings(postingDocIDs, postingFrequencies);
+
+                //compute term upper bound
+                entry.computeTermUpperBound(docTableBuffer, cs);
+
+
+                //TODO could change only relevant bytes inside previously read buffer instead of re-serializing everything?
+                outLexiconStream.write(entry.serialize());
+                bytesRead = inLexiconStream.read(buffer);
+            }
+
+        } catch (FileNotFoundException ee) {
+            ee.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 }

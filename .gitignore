@@ -6,6 +6,7 @@
 /resources/document_table/
 /target/
 /resources/document_table*
+/resources/merged_lexicon.*
 /resources/lexicon.*
 /resources/postings_doc_ids.*
 /resources/postings_frequencies.*

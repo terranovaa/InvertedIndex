@@ -8,6 +8,7 @@ import it.unipi.exceptions.TermNotFoundException;
 import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.*;
 import it.unipi.utils.Constants;
+import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.ScoringFunctions;
 import it.unipi.utils.TextProcessingUtils;
 
@@ -27,7 +28,7 @@ public class QueryProcessor {
             .build(new CacheLoader<>() {
                 @Nonnull
                 public Document load(@Nonnull Integer docId) {
-                    return docTableDiskSearch(docId);
+                    return DiskDataStructuresSearch.docTableDiskSearch(docId, docTableBuffer);
                 }
             });
 
@@ -36,7 +37,7 @@ public class QueryProcessor {
             .build(new CacheLoader<>() {
                 @Nonnull
                 public LexiconTerm load(@Nonnull String term) throws TermNotFoundException {
-                    LexiconTerm lexiconTerm = lexiconDiskSearch(term);
+                    LexiconTerm lexiconTerm = DiskDataStructuresSearch.lexiconDiskSearch(term, numberOfTerms, lexiconBuffer);
                     // query term may not exist in our Lexicon
                     if (lexiconTerm == null) {
                         throw new TermNotFoundException();
@@ -48,30 +49,20 @@ public class QueryProcessor {
 
     private final SortedSet<DocumentScore> docsPriorityQueue;
 
-    private final MappedByteBuffer lexiconBuffer;
-    private final MappedByteBuffer docTableBuffer;
+    public final MappedByteBuffer lexiconBuffer;
+    public final MappedByteBuffer docTableBuffer;
     private long startQuery;
 
-    private final int numberOfTerms;
+    public final int numberOfTerms;
 
     public QueryProcessor() throws IOException{
-        readCollectionStatistics();
+        collectionStatistics = DiskDataStructuresSearch.readCollectionStatistics();
         docsPriorityQueue = new TreeSet<>();
         FileChannel lexiconChannel = FileChannel.open(Paths.get(Constants.LEXICON_FILE_PATH + Constants.DAT_FORMAT));
         lexiconBuffer = lexiconChannel.map(FileChannel.MapMode.READ_ONLY, 0, lexiconChannel.size()).load();
-        FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + Constants.DAT_FORMAT));
+        FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + "_SPLIT1_" + Constants.DAT_FORMAT));
         docTableBuffer = docTableChannel.map(FileChannel.MapMode.READ_ONLY, 0, docTableChannel.size()).load();
         numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
-    }
-
-    private void readCollectionStatistics(){
-        collectionStatistics = new CollectionStatistics();
-        try (FileInputStream fisCollectionStatistics = new FileInputStream(Constants.COLLECTION_STATISTICS_FILE_PATH + Constants.DAT_FORMAT)){
-            byte[] csBytes = fisCollectionStatistics.readNBytes(16);
-            collectionStatistics.deserializeBinary(csBytes);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     public void commandLine(){
@@ -111,15 +102,15 @@ public class QueryProcessor {
 
         String[] tokens = TextProcessingUtils.tokenize(query);
 
-        String queryType = tokens[0];
-        if(queryType.equals("and")) {
+        String queryType;
+        if((queryType = tokens[0]).equals("and")) {
             System.out.println("You have requested a conjunctive query with the following preprocessed tokens:");
             printTokens(Arrays.copyOfRange(tokens, 1, tokens.length));
         } else if (queryType.equals("or")) {
             System.out.println("You have requested a disjunctive query with the following preprocessed tokens:");
             printTokens(Arrays.copyOfRange(tokens, 1, tokens.length));
         }
-        else throw new IllegalQueryTypeException(tokens[0]);
+        else throw new IllegalQueryTypeException(queryType);
 
         int limit = tokens.length;
         if (tokens.length > Constants.MAX_QUERY_LENGTH) {
@@ -199,8 +190,8 @@ public class QueryProcessor {
             } else if(!conjunctive && postingList.getDocId() != currentDocId)
                 continue;
             // compute partial score
-            score += ScoringFunctions.BM25(currentDoc, postingList, lexiconCache.get(postingList.getTerm()), collectionStatistics);
-            //score += ScoringFunctions.TFIDF(postingList, lexiconCache.get(postingList.getTerm()), collectionStatistics);
+            score += ScoringFunctions.BM25(currentDoc.getLength(), postingList.getFreq(), lexiconCache.get(postingList.getTerm()), collectionStatistics);
+            //score += ScoringFunctions.TFIDF(postingList.getFreq(), lexiconCache.get(postingList.getTerm()), collectionStatistics);
             // posting list end
             if (!postingList.next()) {
                 postingList.closeList();
@@ -209,8 +200,6 @@ public class QueryProcessor {
         }
         return score;
     }
-
-
 
     private void returnResults() {
         for(DocumentScore ds : docsPriorityQueue){
@@ -236,6 +225,7 @@ public class QueryProcessor {
             LexiconTerm lexiconTerm;
             try {
                 lexiconTerm = lexiconCache.get(token);
+                System.out.println("best score: " + lexiconTerm.getTermUpperBound());
             } catch (ExecutionException e) {
                 e.printStackTrace();
                 continue;
@@ -244,42 +234,5 @@ public class QueryProcessor {
             postingLists.add(pl);
         }
         return postingLists;
-    }
-
-    public LexiconTerm lexiconDiskSearch(String term) {
-        int pointer;
-
-        LexiconTerm currentEntry = new LexiconTerm();
-        int leftExtreme = 0;
-        int rightExtreme = numberOfTerms;
-
-        while(rightExtreme > leftExtreme){
-            pointer = (leftExtreme + ((rightExtreme - leftExtreme) / 2)) * Constants.LEXICON_ENTRY_SIZE;
-            lexiconBuffer.position(pointer);
-            byte[] buffer = new byte[Constants.LEXICON_ENTRY_SIZE];
-            lexiconBuffer.get(buffer, 0, Constants.LEXICON_ENTRY_SIZE);
-            String currentTerm = currentEntry.deserializeTerm(buffer);
-            if(currentTerm.compareTo(term) > 0){
-                //we go left on the array
-                rightExtreme = rightExtreme - (int)Math.ceil(((double)(rightExtreme - leftExtreme) / 2));
-            } else if (currentTerm.compareTo(term) < 0) {
-                //we go right on the array
-                leftExtreme = leftExtreme + (int)Math.ceil(((double)(rightExtreme - leftExtreme) / 2));
-            } else {
-                currentEntry.deserializeBinary(buffer);
-                return currentEntry;
-            }
-        }
-        return null;
-    }
-
-    public Document docTableDiskSearch(int docId) {
-        Document doc = new Document();
-        int fileSeekPointer = docId * Constants.DOCUMENT_ENTRY_SIZE_SPLIT1;
-        docTableBuffer.position(fileSeekPointer);
-        byte[] result = new byte[Constants.DOCUMENT_ENTRY_SIZE_SPLIT1];
-        docTableBuffer.get(result, 0, Constants.DOCUMENT_ENTRY_SIZE_SPLIT1);
-        doc.deserializeBinarySplit1(result);
-        return doc;
     }
 }

@@ -4,6 +4,7 @@ import it.unipi.exceptions.IllegalQueryTypeException;
 import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.Document;
 import it.unipi.models.LexiconTerm;
+import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.TextProcessingUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ public class QueryProcessorTests {
         Document document;
 
         for (int i = 0; i < 8_000_000; i++) {
-            document = queryProcessor.docTableDiskSearch(i);
+            document = DiskDataStructuresSearch.docTableDiskSearch(i, queryProcessor.docTableBuffer);
             Assertions.assertEquals(document.getDocId(), i);
         }
         end = System.currentTimeMillis();
@@ -43,7 +44,7 @@ public class QueryProcessorTests {
         LexiconTerm lexiconTerm;
         long start = System.currentTimeMillis();
         for (String word: stemmedWords) {
-            lexiconTerm = queryProcessor.lexiconDiskSearch(word);
+            lexiconTerm = DiskDataStructuresSearch.lexiconDiskSearch(word, queryProcessor.numberOfTerms, queryProcessor.lexiconBuffer);
             Assertions.assertEquals(lexiconTerm.getTerm(), word);
         }
         long end = System.currentTimeMillis();

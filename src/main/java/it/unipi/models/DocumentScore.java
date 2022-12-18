@@ -6,7 +6,6 @@ public record DocumentScore(int docId, double score) implements Comparable<Docum
 
     @Override
     public int compareTo(@Nonnull DocumentScore ds) {
-        // TODO check if we need to swap the values
         return Double.compare(ds.score, this.score);
     }
 

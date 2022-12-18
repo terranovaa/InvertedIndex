@@ -21,6 +21,9 @@ public class LexiconTerm {
     protected int docIdsSize;
     protected int frequenciesSize;
 
+    //dynamic pruning
+    protected double termUpperBound = 0;
+
     public LexiconTerm() {
         documentFrequency = 0;
         collectionFrequency = 0;
@@ -87,6 +90,14 @@ public class LexiconTerm {
         this.frequenciesSize = frequenciesSize;
     }
 
+    public double getTermUpperBound() {
+        return termUpperBound;
+    }
+
+    public void setTermUpperBound(double termUpperBound) {
+        this.termUpperBound = termUpperBound;
+    }
+
     public byte[] serializeBinary() {
 
         byte[] lexiconEntry = new byte[Constants.LEXICON_ENTRY_SIZE];
@@ -99,28 +110,31 @@ public class LexiconTerm {
         byte[] entryFrequenciesOffset = EncodingUtils.longToByteArray(frequenciesOffset);
         byte[] entryDocIDSize = EncodingUtils.intToByteArray(docIdsSize);
         byte[] entryFrequenciesSize = EncodingUtils.intToByteArray(frequenciesSize);
+        byte[] entryTermUpperBound = EncodingUtils.doubleToByteArray(termUpperBound);;
 
         //fill the first part of the buffer with the utf-8 representation of the term, leave the rest to 0
         System.arraycopy(entryTerm, 0, lexiconEntry, 0, entryTerm.length);
         //fill the last part of the buffer with statistics and offsets
-        System.arraycopy(entryDf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 32, 4);
-        System.arraycopy(entryCf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 28, 4);
-        System.arraycopy(entryDocIDOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 24, 8);
-        System.arraycopy(entryFrequenciesOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 16, 8);
-        System.arraycopy(entryDocIDSize, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 8, 4);
-        System.arraycopy(entryFrequenciesSize, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 4, 4);
+        System.arraycopy(entryDf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 40, 4);
+        System.arraycopy(entryCf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 36, 4);
+        System.arraycopy(entryDocIDOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 32, 8);
+        System.arraycopy(entryFrequenciesOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 24, 8);
+        System.arraycopy(entryDocIDSize, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 16, 4);
+        System.arraycopy(entryFrequenciesSize, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 12, 4);
+        System.arraycopy(entryTermUpperBound, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 8, 8);
         return lexiconEntry;
     }
 
     public void deserializeBinary(byte[] buffer) {
         term = this.deserializeTerm(buffer);
         //decode the rest of the buffer
-        documentFrequency = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 32);
-        collectionFrequency = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 28);
-        docIdsOffset = EncodingUtils.byteArrayToLong(buffer, Constants.LEXICON_ENTRY_SIZE - 24);
-        frequenciesOffset = EncodingUtils.byteArrayToLong(buffer, Constants.LEXICON_ENTRY_SIZE - 16);
-        docIdsSize = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 8);
-        frequenciesSize = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 4);
+        documentFrequency = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 40);
+        collectionFrequency = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 36);
+        docIdsOffset = EncodingUtils.byteArrayToLong(buffer, Constants.LEXICON_ENTRY_SIZE - 32);
+        frequenciesOffset = EncodingUtils.byteArrayToLong(buffer, Constants.LEXICON_ENTRY_SIZE - 24);
+        docIdsSize = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 16);
+        frequenciesSize = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 12);
+        termUpperBound = EncodingUtils.byteArrayToDouble(buffer, Constants.LEXICON_ENTRY_SIZE - 8);
     }
 
     public String deserializeTerm(byte[] buffer) {

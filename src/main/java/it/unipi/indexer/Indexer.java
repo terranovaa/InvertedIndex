@@ -100,6 +100,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
 
                 if (docLen == 0) continue;
                 documentTable.put(currentDocId, new Document(currentDocId, docNo, docLen));
+
                 currentDocId++;
             }
 
@@ -140,6 +141,8 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
     abstract void writeToDisk();
 
     abstract public void merge();
+
+    abstract public void refineIndex();
 
     // same function for both binary and textual indexing, it just concatenates the partial files
     protected void mergePartialDocumentTables() throws IOException {
