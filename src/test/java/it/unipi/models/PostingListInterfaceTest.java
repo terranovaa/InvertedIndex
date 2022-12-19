@@ -1,6 +1,6 @@
 package it.unipi.models;
 
-import it.unipi.queryProcessor.QueryProcessor;
+import it.unipi.query.processor.QueryProcessor;
 import it.unipi.utils.DiskDataStructuresSearch;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;

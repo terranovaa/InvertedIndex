@@ -3,13 +3,14 @@ package it.unipi.models;
 import it.unipi.utils.Constants;
 import it.unipi.utils.EncodingUtils;
 
+import javax.annotation.Nonnull;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.*;
 
-public class PostingListInterface {
+public class PostingListInterface implements Comparable<PostingListInterface> {
 
     // Not sure if necessary
     private final String term;
@@ -20,6 +21,7 @@ public class PostingListInterface {
     private int currentDocID;
     private int currentFreq;
     private final int docIdsStartingOffset;
+    private final double termUpperBound;
 
     private final LinkedHashMap<Integer, SkipPointerEntry> skipPointers;
 
@@ -28,6 +30,7 @@ public class PostingListInterface {
     @SuppressWarnings("resource")
     public PostingListInterface(LexiconTerm lexiconTerm) throws IOException {
         term = lexiconTerm.getTerm();
+        termUpperBound = lexiconTerm.termUpperBound;
         int docIdsSize = lexiconTerm.getDocIdsSize();
         int frequenciesSize = lexiconTerm.getFrequenciesSize();
         docIdsChannel = new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + Constants.DAT_FORMAT).getChannel();
@@ -84,6 +87,10 @@ public class PostingListInterface {
         freqBuffer.position(position);
     }
 
+    public double getTermUpperBound() {
+        return termUpperBound;
+    }
+
     public void closeList() {
         try {
             docIdsBuffer.clear();
@@ -120,21 +127,40 @@ public class PostingListInterface {
 
         return true;
     }
-    
-    public void nextGEQ(int docId) {
+
+    // TODO need to check if it works
+    public boolean nextGEQ(int docId) {
+
+        if (currentDocID >= docId) return true;
+
+        int startingDocId = currentDocID;
+
+        int skipDocId = 0;
+        int skipDocIdOffset = 0;
+        int skipFreqOffset = 0;
+
+        boolean postingListHasNext = true;
 
         for (Map.Entry<Integer, SkipPointerEntry> skipPointer : skipPointers.entrySet()) {
-            // TODO need to check if it works
-            // the second check is done in order to avoid going back to a lower offset (I think)
-            if (skipPointer.getKey() < docId && skipPointer.getKey() > currentDocID) {
-                docIdsBuffer.position(docIdsStartingOffset + (int) skipPointer.getValue().docIdOffset());
-                freqBuffer.position((int) skipPointer.getValue().freqOffset());
+            if (skipPointer.getKey() < startingDocId) continue;
+            if (skipPointer.getKey() <= docId) {
+                skipDocId = skipPointer.getKey();
+                skipDocIdOffset = (int) skipPointer.getValue().docIdOffset();
+                skipFreqOffset = (int) skipPointer.getValue().freqOffset();
             } else break;
         }
 
-        while (currentDocID < docId) {
+        if (skipDocId > startingDocId) {
+            docIdsBuffer.position(docIdsStartingOffset + skipDocIdOffset);
+            freqBuffer.position(skipFreqOffset);
             next();
         }
+
+        while (currentDocID < docId && postingListHasNext) {
+            postingListHasNext = next();
+        }
+
+        return postingListHasNext;
     }
 
     @Override
@@ -148,5 +174,10 @@ public class PostingListInterface {
     @Override
     public int hashCode() {
         return Objects.hash(term);
+    }
+
+    @Override
+    public int compareTo(@Nonnull PostingListInterface pli) {
+        return Double.compare(this.termUpperBound, pli.termUpperBound);
     }
 }

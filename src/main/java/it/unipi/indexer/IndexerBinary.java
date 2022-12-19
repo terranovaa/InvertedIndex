@@ -205,16 +205,13 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
                 //compute term upper bound
                 entry.computeTermUpperBound(docTableBuffer, cs);
 
-
                 //TODO could change only relevant bytes inside previously read buffer instead of re-serializing everything?
                 outLexiconStream.write(entry.serialize());
                 bytesRead = inLexiconStream.read(buffer);
             }
 
-        } catch (FileNotFoundException ee) {
+        } catch (IOException ee) {
             ee.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 

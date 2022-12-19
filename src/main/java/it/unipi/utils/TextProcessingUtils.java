@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 
 public class TextProcessingUtils {
     private static final HashSet<String> stopWords;
-    private static final org.tartarus.snowball.ext.englishStemmer englishStemmer = new englishStemmer();
+    private static final englishStemmer englishStemmer = new englishStemmer();
     static Pattern cleanRegex = Pattern.compile("[^a-zA-Z0-9]");
     static Pattern splitRegex = Pattern.compile(" +");
 
@@ -34,8 +34,6 @@ public class TextProcessingUtils {
         // normalization
         document = document.toLowerCase();
         //remove punctuation and strange characters
-        //document = document.replaceAll("[^a-z0-9\\s]", " ");
-        // removing control characters
         document = cleanRegex.matcher(document).replaceAll(" ");
         //split in tokens
         return splitRegex.split(document);

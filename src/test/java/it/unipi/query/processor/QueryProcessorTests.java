@@ -1,4 +1,4 @@
-package it.unipi.queryProcessor;
+package it.unipi.query.processor;
 
 import it.unipi.exceptions.IllegalQueryTypeException;
 import it.unipi.exceptions.NoResultsFoundException;
@@ -57,20 +57,38 @@ public class QueryProcessorTests {
         long start;
         long end;
         start = System.currentTimeMillis();
-        queryProcessor.processQuery("I found out just yesterday");
+        queryProcessor.processQuery("OR I found out just yesterday");
         end = System.currentTimeMillis();
         System.out.println(((double) (end - start) / 1000) + " seconds");
         start = System.currentTimeMillis();
-        queryProcessor.processQuery("I found out just yesterday");
+        queryProcessor.processQuery("OR I found out just yesterday");
         end = System.currentTimeMillis();
         System.out.println(((double) (end - start) / 1000) + " seconds");
 
         start = System.currentTimeMillis();
-        queryProcessor.processQuery("I found out just yesterday you had some problems during winter probably lexicon awards");
+        queryProcessor.processQuery("OR I found out just yesterday you had some problems during winter probably lexicon awards");
         end = System.currentTimeMillis();
         System.out.println(((double) (end - start) / 1000) + " seconds");
         start = System.currentTimeMillis();
-        queryProcessor.processQuery("I found out just yesterday you had some problems during winter probably lexicon awards");
+        queryProcessor.processQuery("OR I found out just yesterday you had some problems during winter probably lexicon awards");
+        end = System.currentTimeMillis();
+        System.out.println(((double) (end - start) / 1000) + " seconds");
+
+        start = System.currentTimeMillis();
+        queryProcessor.processQuery("AND I found out just yesterday");
+        end = System.currentTimeMillis();
+        System.out.println(((double) (end - start) / 1000) + " seconds");
+        start = System.currentTimeMillis();
+        queryProcessor.processQuery("AND I found out just yesterday");
+        end = System.currentTimeMillis();
+        System.out.println(((double) (end - start) / 1000) + " seconds");
+
+        start = System.currentTimeMillis();
+        queryProcessor.processQuery("AND I found out just yesterday you had some problems during winter probably lexicon awards");
+        end = System.currentTimeMillis();
+        System.out.println(((double) (end - start) / 1000) + " seconds");
+        start = System.currentTimeMillis();
+        queryProcessor.processQuery("AND I found out just yesterday you had some problems during winter probably lexicon awards");
         end = System.currentTimeMillis();
         System.out.println(((double) (end - start) / 1000) + " seconds");
     }

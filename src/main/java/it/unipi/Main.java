@@ -3,7 +3,7 @@ package it.unipi;
 import it.unipi.indexer.Indexer;
 import it.unipi.indexer.IndexerBinary;
 import it.unipi.indexer.IndexerTextual;
-import it.unipi.queryProcessor.QueryProcessor;
+import it.unipi.query.processor.QueryProcessor;
 import it.unipi.utils.Constants;
 import it.unipi.utils.FileSystemUtils;
 
