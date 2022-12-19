@@ -282,8 +282,10 @@ public class QueryProcessor {
                     PostingListInterface postingList = postingLists.get(i);
                     if (postingList.getDocId() == currentDocId) {
                         score += ScoringFunctions.BM25(currentDoc.getLength(), postingList.getFreq(), lexiconCache.get(postingList.getTerm()), collectionStatistics);
+                        //move the pointer to the next posting (if present)
                         if (!postingList.next()) finishedPostingLists.add(i);
                     }
+                    //compute next document to score
                     if (next == -1 || postingList.getDocId() < next) {
                         next = postingList.getDocId();
                     }
@@ -310,7 +312,9 @@ public class QueryProcessor {
             if (docsPriorityQueue.size() < Constants.NUMBER_OF_OUTPUT_DOCUMENTS || score > docsPriorityQueue.last().score()) {
                 updatePriorityQueue(docScore);
                 // list pivot update
-                threshold = docsPriorityQueue.last().score();
+                if(docsPriorityQueue.size() == Constants.NUMBER_OF_OUTPUT_DOCUMENTS){
+                    threshold = docsPriorityQueue.last().score();
+                }
                 while (pivot < n && docUpperBounds.get(pivot) <= threshold) {
                     pivot++;
                 }
@@ -323,7 +327,6 @@ public class QueryProcessor {
     }
 
     private boolean processConjunctiveQuery(List<PostingListInterface> postingLists, List<Double> docUpperBounds) {
-
         double threshold = 0;
         int pivot = 0;
         int currentDocId;
@@ -341,7 +344,6 @@ public class QueryProcessor {
         boolean atLeastAPostingListIsFinished = false;
 
         while (pivot < n && !atLeastAPostingListIsFinished) {
-
             try {
 
                 score = 0;
@@ -350,7 +352,9 @@ public class QueryProcessor {
                 // essential lists
                 for (int i = pivot; i < n; i++) {
                     PostingListInterface postingList = postingLists.get(i);
-                    postingList.nextGEQ(currentDocId);
+                    if (!postingList.nextGEQ(currentDocId)) {
+                        atLeastAPostingListIsFinished = true;
+                    }
                     if (postingList.getDocId() == currentDocId) {
                         score += ScoringFunctions.BM25(currentDoc.getLength(), postingList.getFreq(), lexiconCache.get(postingList.getTerm()), collectionStatistics);
                         if (!postingList.next()) atLeastAPostingListIsFinished = true;
@@ -386,7 +390,9 @@ public class QueryProcessor {
                 if (docsPriorityQueue.size() < Constants.NUMBER_OF_OUTPUT_DOCUMENTS || score > docsPriorityQueue.last().score()) {
                     updatePriorityQueue(docScore);
                     // list pivot update
-                    threshold = docsPriorityQueue.last().score();
+                    if(docsPriorityQueue.size() == Constants.NUMBER_OF_OUTPUT_DOCUMENTS){
+                        threshold = docsPriorityQueue.last().score();
+                    }
                     while (pivot < n && docUpperBounds.get(pivot) <= threshold) {
                         pivot++;
                     }
