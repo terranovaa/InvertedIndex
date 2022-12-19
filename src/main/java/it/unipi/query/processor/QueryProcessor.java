@@ -143,7 +143,7 @@ public class QueryProcessor {
                 lexiconTerm = lexiconCache.get(token);
             } catch (ExecutionException e) {
                 // term is not present in the lexicon
-                e.printStackTrace();
+                System.err.println(e.getMessage());
                 continue;
             }
             PostingListInterface pl = new PostingListInterface(lexiconTerm);
