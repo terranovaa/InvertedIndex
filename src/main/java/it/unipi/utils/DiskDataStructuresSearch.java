@@ -1,8 +1,6 @@
 package it.unipi.utils;
 
-import it.unipi.models.CollectionStatistics;
-import it.unipi.models.Document;
-import it.unipi.models.LexiconTerm;
+import it.unipi.models.*;
 
 import java.io.FileInputStream;
 import java.io.IOException;

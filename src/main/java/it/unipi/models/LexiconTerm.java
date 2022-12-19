@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class LexiconTerm {
 
@@ -160,5 +161,18 @@ public class LexiconTerm {
         term = elements.get(0);
         documentFrequency = Integer.parseInt(elements.get(1));
         collectionFrequency = Integer.parseInt(elements.get(2));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        LexiconTerm that = (LexiconTerm) o;
+        return term.equals(that.term);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(term);
     }
 }
