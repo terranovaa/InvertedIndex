@@ -96,6 +96,18 @@ public class Document {
         return output;
     }
 
+    public byte[] serializeBinarySplit1(){
+        byte[] documentEntry = new byte[Constants.DOCUMENT_ENTRY_SIZE_SPLIT1];
+        //fixed number of bytes, 4 for each integer
+        byte[] docId = EncodingUtils.intToByteArray(this.getDocId());
+        byte[] docLength = EncodingUtils.intToByteArray(this.getLength());
+
+        //fill the last part of the buffer
+        System.arraycopy(docId, 0, documentEntry, Constants.DOCUMENT_ENTRY_SIZE_SPLIT1 - 8, 4);
+        System.arraycopy(docLength, 0, documentEntry, Constants.DOCUMENT_ENTRY_SIZE_SPLIT1 - 4, 4);
+        return documentEntry;
+    }
+
     //encode document object as an array of Strings
     public String[] serializeTextual() {
         ArrayList<String> list = new ArrayList<>();

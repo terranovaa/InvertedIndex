@@ -7,7 +7,6 @@ public class LexiconTermIndexing extends LexiconTerm {
     //posting_list of the term used during Indexing
     protected ArrayList<Integer> postingListDocIds = new ArrayList<>();
     protected ArrayList<Integer> postingListFrequencies = new ArrayList<>();
-    //encoded posting_list used for performance during merge
     private int lastDocIdInserted;
 
 
@@ -38,11 +37,7 @@ public class LexiconTermIndexing extends LexiconTerm {
     }
 
     public void addToPostingList(int docID) {
-        //increase total occurrences by 1
-        collectionFrequency++;
         if(lastDocIdInserted != docID){
-            //first occurrence in current document
-            documentFrequency++;
             lastDocIdInserted = docID;
             postingListDocIds.add(docID);
             postingListFrequencies.add(1);

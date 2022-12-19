@@ -12,9 +12,11 @@ import it.unipi.utils.Constants;
 import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.ScoringFunctions;
 import it.unipi.utils.TextProcessingUtils;
+import opennlp.tools.parser.Cons;
 
 import javax.annotation.Nonnull;
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
@@ -63,6 +65,32 @@ public class QueryProcessor {
         FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + "_SPLIT1_" + Constants.DAT_FORMAT));
         docTableBuffer = docTableChannel.map(FileChannel.MapMode.READ_ONLY, 0, docTableChannel.size()).load();
         numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
+
+        //initialize the lexicon cache with terms with the highest document frequency
+        FileChannel warmUpLexiconChannel = FileChannel.open(Paths.get(Constants.WARM_UP_LEXICON_FILE_PATH + Constants.DAT_FORMAT));
+        ByteBuffer bb = ByteBuffer.allocate(Constants.LEXICON_ENTRY_SIZE * 5000);
+        warmUpLexiconChannel.read(bb);
+        byte[] warmUpLexicon = bb.array();
+        byte[] entry = new byte[Constants.LEXICON_ENTRY_SIZE];
+        for(int i=0; i < Constants.LEXICON_ENTRY_SIZE * 5000; i = i + Constants.LEXICON_ENTRY_SIZE){
+            System.arraycopy(warmUpLexicon, i, entry, 0, Constants.LEXICON_ENTRY_SIZE);
+            LexiconTermBinaryIndexing lexiconTerm = new LexiconTermBinaryIndexing();
+            lexiconTerm.deserializeBinary(entry);
+            lexiconCache.put(lexiconTerm.getTerm(), lexiconTerm);
+        }
+
+        //initialize the document table cache with longest documents
+        FileChannel warmUpDocTableChannel = FileChannel.open(Paths.get(Constants.WARM_UP_DOC_TABLE + Constants.DAT_FORMAT));
+        bb = ByteBuffer.allocate(Constants.DOCUMENT_ENTRY_SIZE_SPLIT1 * 5000);
+        warmUpDocTableChannel.read(bb);
+        byte[] warmUpDocTable = bb.array();
+        entry = new byte[Constants.DOCUMENT_ENTRY_SIZE_SPLIT1];
+        for(int i=0; i < Constants.DOCUMENT_ENTRY_SIZE_SPLIT1 * 5000; i = i + Constants.DOCUMENT_ENTRY_SIZE_SPLIT1){
+            System.arraycopy(warmUpDocTable, i, entry, 0, Constants.DOCUMENT_ENTRY_SIZE_SPLIT1);
+            Document d = new Document();
+            d.deserializeBinarySplit1(entry);
+            documentTableCache.put(d.getDocId(), d);
+        }
     }
 
     public void commandLine(){

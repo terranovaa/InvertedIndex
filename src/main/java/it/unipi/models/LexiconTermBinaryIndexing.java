@@ -13,6 +13,7 @@ import java.util.Map;
 
 public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
+    //encoded posting_list used for performance during merge
     private byte[] encodedDocIDs;
     private byte[] encodedFrequencies;
     //used to keep pointers during merge
@@ -55,21 +56,27 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         }
     }
 
-    public void computeTermUpperBound(MappedByteBuffer docTableBuffer, CollectionStatistics collectionStatistics) {
-        //TODO we are forced to decode postings...
+    public void computeStatistics(MappedByteBuffer docTableBuffer, CollectionStatistics collectionStatistics){
+        //TODO we are forced to decode postings to compute term upper bound...
         this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
         this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
+        //compute termUpperBound
         this.termUpperBound = -1;
         int i = 0;
-        for(Integer docID: postingListDocIds){
+        int collectionFrequency = 0;
+        for(Integer docID: this.postingListDocIds){
             Document d = DiskDataStructuresSearch.docTableDiskSearch(docID, docTableBuffer);
             double score = ScoringFunctions.BM25(d.getLength(), this.postingListFrequencies.get(i), this, collectionStatistics);
             //double score = ScoringFunctions.TFIDF(this.postingListFrequencies.get(i), this, collectionStatistics);
-            if (score > termUpperBound){
-                termUpperBound = score;
+            if (score > this.termUpperBound){
+                this.termUpperBound = score;
             }
+            collectionFrequency = collectionFrequency + this.postingListFrequencies.get(i);
             i++;
         }
+
+        //compute cf
+        this.setCollectionFrequency(collectionFrequency);
     }
 
     public void writeToDisk(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream) throws IOException {
@@ -79,9 +86,12 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         //(doc id,offset) list for skip pointers
         LinkedHashMap<Integer, SkipPointerEntry> skipPointers = new LinkedHashMap<>();
 
+        this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
+        this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
+
+        this.documentFrequency = this.postingListDocIds.size();
+
         if (this.documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
-            this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
-            this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
 
             //create sqrt(df) blocks of sqrt(df) size (rounded to the highest value when needed)
             blockSize = (int) Math.ceil(Math.sqrt(this.documentFrequency));
