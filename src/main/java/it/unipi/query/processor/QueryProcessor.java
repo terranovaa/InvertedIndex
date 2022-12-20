@@ -1,11 +1,9 @@
 package it.unipi.query.processor;
 
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import it.unipi.exceptions.IllegalQueryTypeException;
 import it.unipi.exceptions.NoResultsFoundException;
-import it.unipi.exceptions.TermNotFoundException;
 import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.*;
 import it.unipi.utils.Constants;
@@ -13,14 +11,13 @@ import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.ScoringFunctions;
 import it.unipi.utils.TextProcessingUtils;
 
-import javax.annotation.Nonnull;
-import java.io.*;
-import java.nio.ByteBuffer;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 public class QueryProcessor {
@@ -28,50 +25,25 @@ public class QueryProcessor {
     private final CollectionStatistics collectionStatistics;
 
     private final SortedSet<DocumentScore> docsPriorityQueue;
+    private HashSet<String> tokenSet = new HashSet<>();
 
     public final MappedByteBuffer lexiconBuffer;
     public final MappedByteBuffer docTableBuffer;
 
     public final int numberOfTerms;
 
+    private final Cache<HashSet<String>, SortedSet<DocumentScore>> queryCache = CacheBuilder.newBuilder().maximumSize(1_000).initialCapacity(1_000).build();
+
+    private int k;
+
     public QueryProcessor() throws IOException{
         collectionStatistics = DiskDataStructuresSearch.readCollectionStatistics();
         docsPriorityQueue = new TreeSet<>();
         FileChannel lexiconChannel = FileChannel.open(Paths.get(Constants.LEXICON_FILE_PATH + Constants.DAT_FORMAT));
         lexiconBuffer = lexiconChannel.map(FileChannel.MapMode.READ_ONLY, 0, lexiconChannel.size()).load();
-        FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + "_SPLIT1_" + Constants.DAT_FORMAT));
+        FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + Constants.DAT_FORMAT));
         docTableBuffer = docTableChannel.map(FileChannel.MapMode.READ_ONLY, 0, docTableChannel.size()).load();
         numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
-
-/*
-        //initialize the lexicon cache with terms with the highest document frequency
-        FileChannel warmUpLexiconChannel = FileChannel.open(Paths.get(Constants.WARM_UP_LEXICON_FILE_PATH + Constants.DAT_FORMAT));
-        ByteBuffer bb = ByteBuffer.allocate(Constants.LEXICON_ENTRY_SIZE * 5000);
-        warmUpLexiconChannel.read(bb);
-        byte[] warmUpLexicon = bb.array();
-        byte[] entry = new byte[Constants.LEXICON_ENTRY_SIZE];
-        for(int i=0; i < Constants.LEXICON_ENTRY_SIZE * 5000; i = i + Constants.LEXICON_ENTRY_SIZE){
-            System.arraycopy(warmUpLexicon, i, entry, 0, Constants.LEXICON_ENTRY_SIZE);
-            LexiconTerm lexiconTerm = new LexiconTerm();
-            lexiconTerm.deserializeBinary(entry);
-            lexiconCache.put(lexiconTerm.getTerm(), lexiconTerm);
-        }
-
-        /*
-        //initialize the document table cache with the longest documents
-        FileChannel warmUpDocTableChannel = FileChannel.open(Paths.get(Constants.WARM_UP_DOC_TABLE + Constants.DAT_FORMAT));
-        bb = ByteBuffer.allocate(Constants.DOCUMENT_ENTRY_SIZE_SPLIT1 * 5000);
-        warmUpDocTableChannel.read(bb);
-        byte[] warmUpDocTable = bb.array();
-        entry = new byte[Constants.DOCUMENT_ENTRY_SIZE_SPLIT1];
-        for(int i=0; i < Constants.DOCUMENT_ENTRY_SIZE_SPLIT1 * 5000; i = i + Constants.DOCUMENT_ENTRY_SIZE_SPLIT1){
-            System.arraycopy(warmUpDocTable, i, entry, 0, Constants.DOCUMENT_ENTRY_SIZE_SPLIT1);
-            Document d = new Document();
-            d.deserializeBinarySplit1(entry);
-            documentTableCache.put(d.getDocId(), d);
-        }
-
-         */
     }
 
     public void commandLine(){
@@ -81,32 +53,58 @@ public class QueryProcessor {
             String line;
             System.out.print("> ");
             while ((line = in.readLine()) != null) {
-                long startQuery = System.currentTimeMillis();
                 if(Arrays.asList(QUIT_CODES).contains(line)){
                     System.out.println("Shutting down...");
                     break;
                 }
-                boolean success = false;
-                try {
-                    success = processQuery(line);
-                } catch(IllegalQueryTypeException e){
-                    e.printStackTrace();
-                    System.out.println("Input Format: [AND|OR] term1 ... termN");
-                } catch (NoResultsFoundException e){
-                    e.printStackTrace();
-                } catch (ExecutionException | TerminatedListException e) {
-                    throw new RuntimeException(e);
-                }
-                if(success)
-                    returnResults();
-                docsPriorityQueue.clear();
-                long end = System.currentTimeMillis();
-                System.out.println(((double)(end - startQuery)/1000) + " seconds");
+                runQuery(line, 10);
                 System.out.print("> ");
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public SortedSet<DocumentScore> runQuery(String query, int k) {
+
+        this.k = k;
+
+        long startQuery = System.currentTimeMillis();
+
+        boolean success = false;
+        try {
+            success = processQuery(query);
+        } catch(IllegalQueryTypeException e){
+            e.printStackTrace();
+            System.out.println("Input Format: [AND|OR] term1 ... termN");
+        } catch (NoResultsFoundException e){
+            e.printStackTrace();
+        } catch (ExecutionException | TerminatedListException | IOException e) {
+            throw new RuntimeException(e);
+        }
+        if(success) {
+            for(DocumentScore ds : docsPriorityQueue){
+                System.out.println(ds.docNo());
+            }
+        }
+
+        long end = System.currentTimeMillis();
+        System.out.println(((double)(end - startQuery)/1000) + " seconds");
+
+        SortedSet<DocumentScore> results = new TreeSet<>();
+
+        if (success) {
+
+            results.addAll(docsPriorityQueue);
+
+            if (queryCache.getIfPresent(tokenSet) == null) {
+                queryCache.put(tokenSet, results);
+            }
+
+            docsPriorityQueue.clear();
+        }
+
+        return results;
     }
 
     public boolean processQuery(String query) throws IllegalQueryTypeException, IOException, ExecutionException, TerminatedListException, NoResultsFoundException {
@@ -133,7 +131,7 @@ public class QueryProcessor {
             limit = Constants.MAX_QUERY_LENGTH + 1;
         }
 
-        HashSet<String> tokenSet = new HashSet<>();
+        tokenSet = new HashSet<>();
         for (int i = 1; i < limit; ++i){
             // skip first token specifying the type of the query
             String token = tokens[i];
@@ -141,6 +139,12 @@ public class QueryProcessor {
             token = TextProcessingUtils.truncateToken(token);
             token = TextProcessingUtils.stemToken(token);
             tokenSet.add(token);
+        }
+
+        SortedSet<DocumentScore> documentScores;
+        if ((documentScores = queryCache.getIfPresent(tokenSet)) != null) {
+            docsPriorityQueue.addAll(documentScores);
+            return true;
         }
 
         // Using a TreeSet as the Posting Lists need to be sorted in increasing order of max score contribution
@@ -191,12 +195,6 @@ public class QueryProcessor {
         return false;
     }
 
-    private void returnResults() {
-        for(DocumentScore ds : docsPriorityQueue){
-            System.out.println(ds);
-        }
-    }
-
     private void printTokens(String[] tokens){
         for(int i = 0; i < tokens.length; ++i)
             if(i < tokens.length-1)
@@ -227,10 +225,11 @@ public class QueryProcessor {
 
         while (currentDocId != -1 && pivot < n) {
 
+            if (finishedPostingLists.size() == postingLists.size()) break;
+
             int next = -1;
 
             score = 0;
-            //Document currentDoc = documentTableCache.get(currentDocId);
             Document currentDoc = DiskDataStructuresSearch.docTableDiskSearch(currentDocId, docTableBuffer);
 
             // essential lists
@@ -261,7 +260,7 @@ public class QueryProcessor {
                 }
             }
 
-            DocumentScore docScore = new DocumentScore(currentDocId, score);
+            DocumentScore docScore = new DocumentScore(currentDoc.getDocNo(), score);
 
             if (docsPriorityQueue.size() < Constants.NUMBER_OF_OUTPUT_DOCUMENTS || score > docsPriorityQueue.last().score()) {
                 updatePriorityQueue(docScore);
@@ -301,7 +300,6 @@ public class QueryProcessor {
         while (pivot < n && !atLeastAPostingListIsFinished) {
 
             score = 0;
-            //Document currentDoc = documentTableCache.get(currentDocId);
             Document currentDoc = DiskDataStructuresSearch.docTableDiskSearch(currentDocId, docTableBuffer);
 
             // essential lists
@@ -337,12 +335,12 @@ public class QueryProcessor {
             }
 
             if (score != -1) {
-                DocumentScore docScore = new DocumentScore(currentDocId, score);
+                DocumentScore docScore = new DocumentScore(currentDoc.getDocNo(), score);
 
-                if (docsPriorityQueue.size() < Constants.NUMBER_OF_OUTPUT_DOCUMENTS || score > docsPriorityQueue.last().score()) {
+                if (docsPriorityQueue.size() < k || score > docsPriorityQueue.last().score()) {
                     updatePriorityQueue(docScore);
                     // list pivot update
-                    if(docsPriorityQueue.size() == Constants.NUMBER_OF_OUTPUT_DOCUMENTS){
+                    if(docsPriorityQueue.size() == k){
                         threshold = docsPriorityQueue.last().score();
                     }
                     while (pivot < n && docUpperBounds.get(pivot) <= threshold) {
@@ -365,7 +363,7 @@ public class QueryProcessor {
 
     private void updatePriorityQueue(DocumentScore docScore) {
         docsPriorityQueue.add(docScore);
-        if (docsPriorityQueue.size() > Constants.NUMBER_OF_OUTPUT_DOCUMENTS) {
+        if (docsPriorityQueue.size() > k) {
             docsPriorityQueue.remove(docsPriorityQueue.last());
         }
     }

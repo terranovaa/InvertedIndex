@@ -20,11 +20,11 @@ public class DiskDataStructuresSearch {
 
     public static Document docTableDiskSearch(int docId, MappedByteBuffer docTableBuffer) {
         Document doc = new Document();
-        int fileSeekPointer = docId * Constants.DOCUMENT_ENTRY_SIZE_SPLIT1;
+        int fileSeekPointer = docId * Constants.DOCUMENT_ENTRY_SIZE;
         docTableBuffer.position(fileSeekPointer);
-        byte[] result = new byte[Constants.DOCUMENT_ENTRY_SIZE_SPLIT1];
-        docTableBuffer.get(result, 0, Constants.DOCUMENT_ENTRY_SIZE_SPLIT1);
-        doc.deserializeBinarySplit1(result);
+        byte[] result = new byte[Constants.DOCUMENT_ENTRY_SIZE];
+        docTableBuffer.get(result, 0, Constants.DOCUMENT_ENTRY_SIZE);
+        doc.deserializeBinary(result);
         return doc;
     }
 

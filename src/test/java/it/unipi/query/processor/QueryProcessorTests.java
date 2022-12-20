@@ -4,14 +4,18 @@ import it.unipi.exceptions.IllegalQueryTypeException;
 import it.unipi.exceptions.NoResultsFoundException;
 import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.Document;
+import it.unipi.models.DocumentScore;
 import it.unipi.models.LexiconTerm;
 import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.TextProcessingUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 
 public class QueryProcessorTests {
@@ -54,74 +58,54 @@ public class QueryProcessorTests {
     }
 
     @Test
-    void processQueryTest() throws IllegalQueryTypeException, IOException, ExecutionException, TerminatedListException, NoResultsFoundException, InterruptedException {
-        long start;
-        long end;
+    void runQueryTest() {
 
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("AND I found out just yesterday");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("AND I found out just yesterday");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("OR May also get time");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("OR May also get time");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("OR May also get time");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("OR May also get time");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
+        int k = 10;
 
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("OR I found out just yesterday");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("OR I found out just yesterday");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
+        queryProcessor.runQuery("AND I found out just yesterday", k);
+        queryProcessor.runQuery("AND I found out just yesterday", k);
+        queryProcessor.runQuery("OR I found out just yesterday", k);
+        queryProcessor.runQuery("OR I found out just yesterday", k);
+        queryProcessor.runQuery("OR I found out just yesterday you had some problems during winter probably lexicon awards", k);
+        queryProcessor.runQuery("OR I found out just yesterday you had some problems during winter probably lexicon awards", k);
+        queryProcessor.runQuery("AND I found out just yesterday", k);
+        queryProcessor.runQuery("AND I found out just yesterday", k);
+        queryProcessor.runQuery("OR May also get time", k);
+        queryProcessor.runQuery("OR May also get time", k);
+        queryProcessor.runQuery("AND I found out just yesterday you had some problems during winter probably lexicon awards", k);
+        queryProcessor.runQuery("AND I found out just yesterday you had some problems during winter probably lexicon awards", k);
+        queryProcessor.runQuery("OR May also get time", k);
+    }
 
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("OR I found out just yesterday you had some problems during winter probably lexicon awards");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("OR I found out just yesterday you had some problems during winter probably lexicon awards");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
+    @Test
+    void runTestQueries() {
+        int k = 100;
+        ArrayList<List<String>> queries = new ArrayList<>();
+        try (BufferedReader TSVReader = new BufferedReader(new FileReader("./collection/queries.dev.small.tsv"))) {
+            String line = null;
+            while ((line = TSVReader.readLine()) != null) {
+                String[] lines = line.split("\t");
+                queries.add(List.of(lines));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("AND I found out just yesterday");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("AND I found out just yesterday");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
-
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("AND I found out just yesterday you had some problems during winter probably lexicon awards");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("AND I found out just yesterday you had some problems during winter probably lexicon awards");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
-
-        start = System.currentTimeMillis();
-        queryProcessor.processQuery("OR May also get time");
-        end = System.currentTimeMillis();
-        System.out.println(((double) (end - start) / 1000) + " seconds");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("./collection/queries.results.txt", true))) {
+            SortedSet<DocumentScore> results;
+            for (List<String> queryElem: queries) {
+                StringBuilder output = new StringBuilder();
+                String queryId = queryElem.get(0);
+                String query = queryElem.get(1);
+                results = queryProcessor.runQuery("OR " + query, k);
+                int rank = 1;
+                for (DocumentScore result: results) {
+                    output.append(queryId).append(" Q0 ").append(result.docNo()).append(" ").append(rank++).append(" ").append(result.score()).append(" 01\n");
+                }
+                if (!output.isEmpty()) writer.append(String.valueOf(output));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
