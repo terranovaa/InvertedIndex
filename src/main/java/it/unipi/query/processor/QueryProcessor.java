@@ -114,10 +114,10 @@ public class QueryProcessor {
         QueryType queryType;
 
         if (tokens[0].equals("and")) {
-            queryType = QueryType.CONJUCTIVE;
+            queryType = QueryType.CONJUNCTIVE;
             System.out.println("You have requested a conjunctive query with the following preprocessed tokens:");
         } else if (tokens[0].equals("or")) {
-            queryType = QueryType.DISJUCTIVE;
+            queryType = QueryType.DISJUNCTIVE;
             System.out.println("You have requested a disjunctive query with the following preprocessed tokens:");
         } else {
             throw new IllegalQueryTypeException();
@@ -184,10 +184,10 @@ public class QueryProcessor {
         }
 
         switch (queryType) {
-            case CONJUCTIVE -> {
+            case CONJUNCTIVE -> {
                 return processConjunctiveQuery(postingLists, docUpperBounds, lexiconTerms);
             }
-            case DISJUCTIVE -> {
+            case DISJUNCTIVE -> {
                 return processDisjunctiveQuery(postingLists, docUpperBounds, lexiconTerms);
             }
         }

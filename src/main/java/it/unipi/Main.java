@@ -15,36 +15,20 @@ public class Main {
     private static boolean stopwords_removal = true;
 
     public static void main(String[] args) throws IOException {
-        args = new String[]{"query"};
+        args = new String[]{"index"};
         if (args.length == 0){
             // default case: no args => indexing, DAT format, with stemming and stopword removal
             index(Constants.DAT_FORMAT);
         } else {
             if (args[0].equals("index")){
                 if (args.length == 1) {
-                    // default case: index with no specifications => DAT format with stemming and stopword removal
+                    // default case: index with no specifications => DAT format
                     System.out.println("Using default extension...");
                     index(Constants.DAT_FORMAT);
-                } else if(args.length == 2) {
-                    // default case: index with file specification => with stemming and stopword removal
+                } else if(args.length >= 2) {
+                    // default case: index with file specification
                     if (!args[1].equalsIgnoreCase(Constants.DAT_FORMAT) && !args[1].equalsIgnoreCase(Constants.TXT_FORMAT))
                         throw new RuntimeException("File format not supported..");
-                    index(args[1]);
-                } else if(args.length > 2) { // stemming flag
-                    if (args[2].equals("true")){}
-                    else if (args[2].equals("false")) {
-                        System.out.println("Disabling stemming flag");
-                        stemming = false;
-                    }
-                    else throw new RuntimeException("Stemming flag requires boolean value..");
-                    if (args[3] != null) {
-                        if (args[3].equals("true")) {}
-                        else if (args[3].equals("false")) {
-                            System.out.println("Disabling stopwords removal flag");
-                            stopwords_removal = false;
-                        }
-                        else throw new RuntimeException("Stopwords removal flag requires boolean value..");
-                    }
                     index(args[1]);
                 }
             } else if (args[0].equals("query")){
