@@ -10,9 +10,6 @@ import it.unipi.utils.FileSystemUtils;
 import java.io.IOException;
 
 public class Main {
-    // default options
-    private static boolean stemming = true;
-    private static boolean stopwords_removal = true;
 
     public static void main(String[] args) throws IOException {
         args = new String[]{"index"};
@@ -40,20 +37,26 @@ public class Main {
     }
 
     public static void index(String fileFormat) throws IOException{
+
         FileSystemUtils.setupEnvironment();
+
         Indexer indexer = (fileFormat.equalsIgnoreCase(Constants.TXT_FORMAT)) ? new IndexerTextual() : new IndexerBinary();
+
         long startIndexing = System.currentTimeMillis();
-        indexer.indexCollection(stemming, stopwords_removal);
+        indexer.indexCollection();
         long endIndexing = System.currentTimeMillis();
         System.out.println("Indexed in " + (endIndexing - startIndexing) + " ms");
+
         long startMerge = System.currentTimeMillis();
         indexer.merge();
         long endMerge = System.currentTimeMillis();
         System.out.println("Merged in " + (endMerge - startMerge) + " ms");
+
         long startRefineIndex = System.currentTimeMillis();
         indexer.refineIndex();
         long endRefineIndex = System.currentTimeMillis();
         System.out.println("Refined in " + (endRefineIndex - startRefineIndex) + " ms");
+
         FileSystemUtils.deleteTemporaryFolders();
     }
 }

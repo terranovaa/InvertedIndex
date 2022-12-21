@@ -22,16 +22,12 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
         String postingsFrequenciesFile = Constants.PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH + currentBlock + FILE_EXTENSION.toLowerCase();
         String lexiconFile = Constants.PARTIAL_LEXICON_FILE_PATH + currentBlock + FILE_EXTENSION.toLowerCase();
         String documentTableFile = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + currentBlock + FILE_EXTENSION.toLowerCase();
-        String documentTableFileSplit1 = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + "_SPLIT1_" + currentBlock + FILE_EXTENSION.toLowerCase();
-        String documentTableFileSplit2 = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + "_SPLIT2_" + currentBlock + FILE_EXTENSION.toLowerCase();
 
         long start = System.currentTimeMillis();
         try (BufferedWriter postingsDocIdsStream = new BufferedWriter(new FileWriter(postingsDocIdsFile));
              BufferedWriter postingsFrequenciesStream = new BufferedWriter(new FileWriter(postingsFrequenciesFile));
              BufferedWriter lexiconStream = new BufferedWriter(new FileWriter(lexiconFile));
              BufferedWriter documentTableStream = new BufferedWriter(new FileWriter(documentTableFile));
-             BufferedWriter documentTableStreamSplit1 = new BufferedWriter(new FileWriter(documentTableFileSplit1));
-             BufferedWriter documentTableStreamSplit2 = new BufferedWriter(new FileWriter(documentTableFileSplit2))
         ) {
             for (Map.Entry<String, LexiconTermTextualIndexing> entry : lexicon.entrySet()) {
                 LexiconTermTextualIndexing lexiconTerm = entry.getValue();
@@ -60,18 +56,6 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
                     if(i != documentTableEntry.length-1)
                         documentTableStream.write(documentTableEntry[i]+",");
                     else documentTableStream.write(documentTableEntry[i]+"\n"); // since we don't have the offset information here, we use \n as delimiter
-            }
-            // TEST SPLIT
-            for (Map.Entry<Integer, Document> doc : documentTable.entrySet()) {
-                String[][] documentTableEntry = doc.getValue().serializeTextualSplit();
-                for(int i = 0; i < documentTableEntry[0].length; ++i)
-                    if(i != documentTableEntry[0].length-1)
-                        documentTableStreamSplit1.write(documentTableEntry[0][i]+",");
-                    else documentTableStreamSplit1.write(documentTableEntry[0][i]+"\n"); // since we don't have the offset information here, we use \n as delimiter
-                for(int i = 0; i < documentTableEntry[1].length; ++i)
-                    if(i != documentTableEntry[1].length-1)
-                        documentTableStreamSplit2.write(documentTableEntry[1][i]+",");
-                    else documentTableStreamSplit2.write(documentTableEntry[1][i]+"\n"); // since we don't have the offset information here, we use \n as delimiter
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -162,9 +146,6 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
                 referenceLexiconTerm.writeToDisk(outputDocIdsStream, outputFrequenciesStream, outputLexiconStream);
             }
             mergePartialDocumentTables();
-            // TEST
-            mergePartialDocumentTablesSplit();
-
             try (BufferedWriter bwCollectionStatistics = new BufferedWriter(new FileWriter(Constants.COLLECTION_STATISTICS_FILE_PATH + Constants.TXT_FORMAT))) {
                 bwCollectionStatistics.write(collectionStatistics.serializeToString());
             } catch (IOException e) {

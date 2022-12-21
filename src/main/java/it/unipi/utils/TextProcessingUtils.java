@@ -39,7 +39,7 @@ public class TextProcessingUtils {
         return splitRegex.split(document);
     }
 
-    public static String stemToken(String token){
+    public static String stemToken(String token) {
         englishStemmer.setCurrent(token);
         if (englishStemmer.stem()) {
             token = englishStemmer.getCurrent();

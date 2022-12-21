@@ -32,7 +32,7 @@ public class QueryProcessor {
 
     public final int numberOfTerms;
 
-    private final Cache<HashSet<String>, SortedSet<DocumentScore>> queryCache = CacheBuilder.newBuilder().maximumSize(1_000).initialCapacity(1_000).build();
+    private final Cache<HashSet<String>, SortedSet<DocumentScore>> queryCache = CacheBuilder.newBuilder().maximumSize(100).initialCapacity(100).build();
 
     private int k;
 
@@ -44,6 +44,7 @@ public class QueryProcessor {
         FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + Constants.DAT_FORMAT));
         docTableBuffer = docTableChannel.map(FileChannel.MapMode.READ_ONLY, 0, docTableChannel.size()).load();
         numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
+        k = Constants.NUMBER_OF_OUTPUT_DOCUMENTS;
     }
 
     public void commandLine(){
@@ -57,7 +58,7 @@ public class QueryProcessor {
                     System.out.println("Shutting down...");
                     break;
                 }
-                runQuery(line, 10);
+                runQuery(line, k);
                 System.out.print("> ");
             }
         } catch (IOException e) {

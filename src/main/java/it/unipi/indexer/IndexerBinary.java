@@ -1,16 +1,19 @@
 package it.unipi.indexer;
 
-import it.unipi.models.*;
+import it.unipi.models.CollectionStatistics;
+import it.unipi.models.Document;
+import it.unipi.models.LexiconTermBinaryIndexing;
 import it.unipi.utils.Constants;
 import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.EncodingUtils;
+
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
     public IndexerBinary() {
@@ -19,12 +22,11 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
 
     @Override
     protected void writeToDisk(){
+
         String postingsDocIdsFile = Constants.PARTIAL_POSTINGS_DOC_IDS_FILE_PATH + currentBlock + FILE_EXTENSION;
         String postingsFrequenciesFile = Constants.PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH + currentBlock + FILE_EXTENSION;
         String lexiconFile = Constants.PARTIAL_LEXICON_FILE_PATH + currentBlock + FILE_EXTENSION;
         String documentTableFile = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + currentBlock + FILE_EXTENSION;
-        String documentTableFileSplit1 = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + "_SPLIT1_" + currentBlock + FILE_EXTENSION;
-        String documentTableFileSplit2 = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + "_SPLIT2_" + currentBlock + FILE_EXTENSION;
 
         int docIDsFileOffset = 0;
         int frequenciesFileOffset = 0;
@@ -34,9 +36,7 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
         try (OutputStream postingsDocIdsStream = new BufferedOutputStream(new FileOutputStream(postingsDocIdsFile));
              OutputStream postingsFrequenciesStream = new BufferedOutputStream(new FileOutputStream(postingsFrequenciesFile));
              OutputStream lexiconStream = new BufferedOutputStream(new FileOutputStream(lexiconFile));
-             OutputStream documentTableStream = new BufferedOutputStream(new FileOutputStream(documentTableFile));
-             OutputStream documentTableStreamSplit1 = new BufferedOutputStream(new FileOutputStream(documentTableFileSplit1));
-             OutputStream documentTableStreamSplit2 = new BufferedOutputStream(new FileOutputStream(documentTableFileSplit2));
+             OutputStream documentTableStream = new BufferedOutputStream(new FileOutputStream(documentTableFile))
         ) {
             for (Map.Entry<String, LexiconTermBinaryIndexing> entry : lexicon.entrySet()) {
                 LexiconTermBinaryIndexing lexiconTerm = entry.getValue();
@@ -61,12 +61,6 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
             for (Map.Entry<Integer, Document> doc : documentTable.entrySet()) {
                 byte[] documentTableEntry = doc.getValue().serializeBinary();
                 documentTableStream.write(documentTableEntry);
-            }
-            // TEST, split files
-            for (Map.Entry<Integer, Document> doc : documentTable.entrySet()) {
-                byte[][] documentTableEntry = doc.getValue().serializeBinarySplit();
-                documentTableStreamSplit1.write(documentTableEntry[0]);
-                documentTableStreamSplit2.write(documentTableEntry[1]);
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -146,7 +140,6 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
             }
 
             mergePartialDocumentTables();
-            mergePartialDocumentTablesSplit();
             outputDocIdsStream.close();
             outputFrequenciesStream.close();
             outputLexiconStream.close();
@@ -165,25 +158,15 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
     public void refineIndex() {
         //take merged lexicon and compute term statistics
         try (OutputStream outLexiconStream = new BufferedOutputStream(new FileOutputStream(Constants.LEXICON_FILE_PATH + FILE_EXTENSION));
-             OutputStream warmUpLexiconStream = new BufferedOutputStream(new FileOutputStream(Constants.WARM_UP_LEXICON_FILE_PATH + FILE_EXTENSION));
-             OutputStream warmUpDocTable = new BufferedOutputStream(new FileOutputStream(Constants.WARM_UP_DOC_TABLE + FILE_EXTENSION));
             InputStream inLexiconStream = new BufferedInputStream(new FileInputStream(Constants.MERGED_LEXICON_FILE_PATH + FILE_EXTENSION));
             InputStream inDocIdStream = new BufferedInputStream(new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION));
             InputStream inFrequencyStream = new BufferedInputStream(new FileInputStream(Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION))
         )
         {
-            //TODO tune 5000?
-            int numLexiconTermsToCache = 5000;
-            int numDocumentToCache = 5000;
-            //data structures used for warm up for initializing query processor
-            //most frequent terms
-            ArrayList<LexiconTermBinaryIndexing> mostFrequentTerms = new ArrayList<>(numLexiconTermsToCache);
-            //longest docs
-            ArrayList<Document> longestDocs = new ArrayList<>(numDocumentToCache);
 
             //load collection statistics and open document table
             CollectionStatistics cs = DiskDataStructuresSearch.readCollectionStatistics();
-            FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + "_SPLIT1_" + Constants.DAT_FORMAT));
+            FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + Constants.DAT_FORMAT));
             MappedByteBuffer docTableBuffer = docTableChannel.map(FileChannel.MapMode.READ_ONLY, 0, docTableChannel.size()).load();
 
             byte[] buffer = new byte[Constants.LEXICON_ENTRY_SIZE];
@@ -221,56 +204,6 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
                 //posting lists not needed, to save memory we remove them (we are keeping the terms with the larger posting lists)
                 entry.setPostingListDocIds(null);
                 entry.setPostingListFrequencies(null);
-
-                //check if the term is among top terms for document frequency and update data structure accordingly
-                if(mostFrequentTerms.size() < numLexiconTermsToCache){
-                    mostFrequentTerms.add(entry);
-                    if(mostFrequentTerms.size() == numLexiconTermsToCache){
-                        mostFrequentTerms.sort(Comparator.comparingInt(LexiconTerm::getDocumentFrequency));
-                    }
-                } else {
-                    if (entry.getDocumentFrequency() > mostFrequentTerms.get(0).getDocumentFrequency()){
-                        mostFrequentTerms.remove(0);
-                        mostFrequentTerms.add(entry);
-                        mostFrequentTerms.sort(Comparator.comparingInt(LexiconTerm::getDocumentFrequency));
-                    }
-                }
-            }
-
-            for(LexiconTermBinaryIndexing ltbi: mostFrequentTerms){
-                warmUpLexiconStream.write(ltbi.serialize());
-            }
-
-
-            //compute longest documents
-            docTableChannel.position(0);
-            ByteBuffer bb = ByteBuffer.allocate(currentDocId * Constants.DOCUMENT_ENTRY_SIZE_SPLIT1);
-            docTableChannel.read(bb);
-            byte[] docTableBytes = bb.array();
-            byte[] docTableEntry = new byte[Constants.DOCUMENT_ENTRY_SIZE_SPLIT1];
-            //read each entry from the document table
-            for(int i=0; i < Constants.DOCUMENT_ENTRY_SIZE_SPLIT1 * currentDocId; i = i + Constants.DOCUMENT_ENTRY_SIZE_SPLIT1){
-                System.arraycopy(docTableBytes, i, docTableEntry, 0, Constants.DOCUMENT_ENTRY_SIZE_SPLIT1);
-                Document d = new Document();
-                d.deserializeBinarySplit1(docTableEntry);
-                //check if the doc is among the longest ones and update data structure accordingly
-                if(longestDocs.size() < numDocumentToCache){
-                    longestDocs.add(d);
-                    if(longestDocs.size() == numLexiconTermsToCache){
-                        longestDocs.sort(Comparator.comparingInt(Document::getLength));
-                    }
-                } else {
-                    if (d.getLength() > longestDocs.get(0).getLength()){
-                        longestDocs.remove(0);
-                        longestDocs.add(d);
-                        longestDocs.sort(Comparator.comparingInt(Document::getLength));
-                    }
-                }
-            }
-
-            //write longest docs to disk
-            for(Document d: longestDocs){
-                warmUpDocTable.write(d.serializeBinarySplit1());
             }
         } catch (IOException ee) {
             ee.printStackTrace();

@@ -1,8 +1,5 @@
 package it.unipi.query.processor;
 
-import it.unipi.exceptions.IllegalQueryTypeException;
-import it.unipi.exceptions.NoResultsFoundException;
-import it.unipi.exceptions.TerminatedListException;
 import it.unipi.models.Document;
 import it.unipi.models.DocumentScore;
 import it.unipi.models.LexiconTerm;
@@ -15,8 +12,6 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.SortedSet;
-import java.util.TreeSet;
-import java.util.concurrent.ExecutionException;
 
 public class QueryProcessorTests {
 
@@ -91,7 +86,7 @@ public class QueryProcessorTests {
             e.printStackTrace();
         }
 
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter("./collection/queries.results.txt", true))) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("./collection/queries.results.txt"))) {
             SortedSet<DocumentScore> results;
             for (List<String> queryElem: queries) {
                 StringBuilder output = new StringBuilder();

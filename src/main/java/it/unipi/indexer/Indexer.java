@@ -33,10 +33,6 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
     protected final MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
     protected final String FILE_EXTENSION;
 
-    // TODO: shouldn't the query processing also be made according to if stemming and stopwords removal were used while indexing?
-    protected boolean stemming;
-    protected boolean stopwords_removal;
-
     private int numTerms = 0;
 
     public Indexer(Supplier<? extends T> lexiconTermConstructor, String fileExtension) {
@@ -45,20 +41,19 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
         System.out.println("Using "+ FILE_EXTENSION + " as file extension..");
     }
 
-    public void indexCollection(boolean stemming, boolean stopwords_removal) throws IOException {
-        this.stemming = stemming;
-        this.stopwords_removal = stopwords_removal;
+    public void indexCollection() throws IOException {
         File file = new File(Constants.COLLECTION_PATH);
         final TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(file)));
         TarArchiveEntry tarArchiveEntry = tarArchiveInputStream.getNextTarEntry();
         BufferedReader bufferedReader;
-        if (tarArchiveEntry != null) { //TODO: UTF8 or ASCII?
+        if (tarArchiveEntry != null) {
             // it uses MalformedInputException internally and replace the malformed character as default operation
             bufferedReader = new BufferedReader(new InputStreamReader(tarArchiveInputStream, StandardCharsets.UTF_8));
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 // check if the occupied memory has reached the threshold
                 checkMemory();
+
                 // doc_no and document are split by \t
                 String docNo = line.substring(0, line.indexOf("\t"));
                 String document = line.substring(line.indexOf("\t") + 1);
@@ -73,14 +68,13 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
 
                 for (String token: tokens) {
                     //if the token is a stop word don't consider it
-                    if (stopwords_removal && TextProcessingUtils.isAStopWord(token))
+                    if (TextProcessingUtils.isAStopWord(token))
                         continue;
                     docLen++;
                     // if the token is longer than 20 chars we truncate it
                     token = TextProcessingUtils.truncateToken(token);
                     // we apply the snowball stemmer
-                    if(stemming)
-                        token = TextProcessingUtils.stemToken(token);
+                    token = TextProcessingUtils.stemToken(token);
                     // updating collection statistics
                     numTerms++;
                     //check if the token is already in the lexicon, if not create new entry
@@ -166,49 +160,6 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
             // transfer data from input channel to output channel
             inputChannel.transferTo(0, inputChannel.size(), targetChannel);
 
-            // close the input channel
-            inputChannel.close();
-            fis.close();
-        }
-    }
-
-    // same function for both binary and textual indexing, it just concatenates the partial files
-    protected void mergePartialDocumentTablesSplit() throws IOException {
-        int nextBlock=0;
-        int numberOfBlocks=currentBlock+1;
-        String[] documentTableInputFilesSplit1 = new String[currentBlock+1];
-        String[] documentTableInputFilesSplit2 = new String[currentBlock+1];
-        while(nextBlock < numberOfBlocks){
-            documentTableInputFilesSplit1[nextBlock] = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + "_SPLIT1_" + nextBlock + FILE_EXTENSION;
-            documentTableInputFilesSplit2[nextBlock] = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + "_SPLIT2_" + nextBlock + FILE_EXTENSION;
-            nextBlock++;
-        }
-        String documentTableOutputFileSplit1 = Constants.DOCUMENT_TABLE_FILE_PATH + "_SPLIT1_" + FILE_EXTENSION;
-        String documentTableOutputFileSplit2 = Constants.DOCUMENT_TABLE_FILE_PATH + "_SPLIT2_" +  FILE_EXTENSION;
-
-        FileOutputStream fos = new FileOutputStream(documentTableOutputFileSplit1);
-        WritableByteChannel targetChannel = fos.getChannel();
-        for (String documentTableInputFile : documentTableInputFilesSplit1) {
-            // get channel for input files
-            FileInputStream fis = new FileInputStream(documentTableInputFile);
-            FileChannel inputChannel = fis.getChannel();
-
-            // transfer data from input channel to output channel
-            inputChannel.transferTo(0, inputChannel.size(), targetChannel);
-
-            // close the input channel
-            inputChannel.close();
-            fis.close();
-        }
-
-        fos = new FileOutputStream(documentTableOutputFileSplit2);
-        targetChannel = fos.getChannel();
-        for (String documentTableInputFile : documentTableInputFilesSplit2) {
-            // get channel for input files
-            FileInputStream fis = new FileInputStream(documentTableInputFile);
-            FileChannel inputChannel = fis.getChannel();
-            // transfer data from input channel to output channel
-            inputChannel.transferTo(0, inputChannel.size(), targetChannel);
             // close the input channel
             inputChannel.close();
             fis.close();
