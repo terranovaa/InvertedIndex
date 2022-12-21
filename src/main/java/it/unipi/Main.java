@@ -12,7 +12,7 @@ import java.io.IOException;
 public class Main {
 
     public static void main(String[] args) throws IOException {
-        args = new String[]{"index"};
+        args = new String[]{"query"};
         if (args.length == 0){
             // default case: no args => indexing, DAT format, with stemming and stopword removal
             index(Constants.DAT_FORMAT);

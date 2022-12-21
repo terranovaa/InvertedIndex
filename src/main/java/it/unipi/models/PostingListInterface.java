@@ -21,6 +21,7 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
     private int currentDocID;
     private int currentFreq;
     private final int docIdsStartingOffset;
+    private final int frequencyStartingOffset;
     private final double termUpperBound;
 
     private final LinkedHashMap<Integer, SkipPointerEntry> skipPointers;
@@ -46,10 +47,11 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
             int blockSize = (int) Math.ceil(Math.sqrt(documentFrequency));
             int numSkipBlocks = (int) Math.ceil((double)documentFrequency / (double)blockSize);
             int currentBlock = 0;
+            //TODO why we check .hasRemaining()? Need to do it also for freqBuffer?
             while (docIdsBuffer.hasRemaining() && currentBlock < (numSkipBlocks - 1)) {
                 int docId = docIdsBuffer.getInt();
                 long docIdOffset = docIdsBuffer.getLong();
-                long freqOffset = docIdsBuffer.getLong();
+                long freqOffset = freqBuffer.getLong();
                 skipPointers.put(docId, new SkipPointerEntry(docIdOffset, freqOffset));
                 currentBlock++;
             }
@@ -57,6 +59,7 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
 
         // Need to do it after reading the skip blocks because the offset in the skip pointers is relative to the start of the actual posting list
         docIdsStartingOffset = docIdsBuffer.position();
+        frequencyStartingOffset = freqBuffer.position();
     }
 
     public int getDocId() {
@@ -151,7 +154,7 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
 
         if (skipDocId > startingDocId) {
             docIdsBuffer.position(docIdsStartingOffset + skipDocIdOffset);
-            freqBuffer.position(skipFreqOffset);
+            freqBuffer.position(frequencyStartingOffset + skipFreqOffset);
             next();
         }
 

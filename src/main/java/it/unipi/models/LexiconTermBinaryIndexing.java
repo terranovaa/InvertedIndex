@@ -121,19 +121,24 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         this.setDocIdsOffset(docIDsFileOffset);
         this.setFrequenciesOffset(frequenciesFileOffset);
 
-        // docIDs
         if (skipPointers.size() > 0) {
-            byte[] skipPointersBytes = new byte[skipPointers.size() * 20];
+            //docId (4 bytes) + offset (8 bytes) for each skip pointer in docId file
+            byte[] skipPointersBytesDocIds = new byte[skipPointers.size() * 12];
+            //offset (8 bytes) for each skip pointer in frequency file
+            byte[] skipPointersBytesFrequency = new byte[skipPointers.size() * 8];
             int i = 0;
             for (Map.Entry<Integer, SkipPointerEntry> skipPointer: skipPointers.entrySet()) {
-                System.arraycopy(EncodingUtils.intToByteArray(skipPointer.getKey()), 0, skipPointersBytes, i * 20, 4);
-                System.arraycopy(EncodingUtils.longToByteArray(skipPointer.getValue().docIdOffset()), 0, skipPointersBytes, (i * 20) + 4, 8);
-                System.arraycopy(EncodingUtils.longToByteArray(skipPointer.getValue().freqOffset()), 0, skipPointersBytes, (i * 20) + 12, 8);
+                System.arraycopy(EncodingUtils.intToByteArray(skipPointer.getKey()), 0, skipPointersBytesDocIds, i * 12, 4);
+                System.arraycopy(EncodingUtils.longToByteArray(skipPointer.getValue().docIdOffset()), 0, skipPointersBytesDocIds, (i * 12) + 4, 8);
+                System.arraycopy(EncodingUtils.longToByteArray(skipPointer.getValue().freqOffset()), 0, skipPointersBytesFrequency, i * 8, 8);
                 i++;
             }
-            docIDsFileOffset += skipPointersBytes.length;
-            docIdsSize += skipPointersBytes.length;
-            docIDStream.write(skipPointersBytes);
+            docIDsFileOffset += skipPointersBytesDocIds.length;
+            docIdsSize += skipPointersBytesDocIds.length;
+            frequenciesFileOffset += skipPointersBytesFrequency.length;
+            frequenciesSize += skipPointersBytesFrequency.length;
+            docIDStream.write(skipPointersBytesDocIds);
+            frequenciesStream.write(skipPointersBytesFrequency);
         }
 
         //update general file docId offset and docid size

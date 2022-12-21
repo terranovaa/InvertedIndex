@@ -183,19 +183,23 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
                 entry.deserializeBinary(buffer);
 
                 //jump over skip pointers if any
-                int dimSkipPointers = 0;
+                int dimSkipPointersDocIDs = 0;
+                int dimSkipPointersFrequencies = 0;
                 if (entry.getDocumentFrequency() > Constants.SKIP_POINTERS_THRESHOLD) {
                     int blockSize = (int) Math.ceil(Math.sqrt(entry.getDocumentFrequency()));
                     int numSkipBlocks = (int) Math.ceil((double)entry.getDocumentFrequency() / (double)blockSize);
-                    dimSkipPointers = 20 * (numSkipBlocks-1);
+                    dimSkipPointersDocIDs = 12 * (numSkipBlocks-1);
+                    dimSkipPointersFrequencies = 8 * (numSkipBlocks - 1);
                     //read and throw away bytes corresponding to skip pointers
-                    byte[] skip = new byte[dimSkipPointers];
+                    byte[] skip = new byte[dimSkipPointersDocIDs];
                     inDocIdStream.read(skip);
+                    skip = new byte[dimSkipPointersFrequencies];
+                    inFrequencyStream.read(skip);
                 }
 
                 //get posting lists
-                byte[] postingDocIDs = inDocIdStream.readNBytes(entry.getDocIdsSize() - dimSkipPointers);
-                byte[] postingFrequencies = inFrequencyStream.readNBytes(entry.getFrequenciesSize());
+                byte[] postingDocIDs = inDocIdStream.readNBytes(entry.getDocIdsSize() - dimSkipPointersDocIDs);
+                byte[] postingFrequencies = inFrequencyStream.readNBytes(entry.getFrequenciesSize() - dimSkipPointersFrequencies);
                 entry.mergeEncodedPostings(postingDocIDs, postingFrequencies);
 
                 //compute term upper bound and collection frequency
