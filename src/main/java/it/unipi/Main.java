@@ -1,8 +1,8 @@
 package it.unipi;
 
 import it.unipi.indexer.Indexer;
-import it.unipi.indexer.IndexerBinary;
-import it.unipi.indexer.IndexerTextual;
+import it.unipi.indexer.BinaryIndexer;
+import it.unipi.indexer.TextualIndexer;
 import it.unipi.query.processor.QueryProcessor;
 import it.unipi.utils.Constants;
 import it.unipi.utils.FileSystemUtils;
@@ -40,7 +40,7 @@ public class Main {
 
         FileSystemUtils.setupEnvironment();
 
-        Indexer indexer = (fileFormat.equalsIgnoreCase(Constants.TXT_FORMAT)) ? new IndexerTextual() : new IndexerBinary();
+        Indexer indexer = (fileFormat.equalsIgnoreCase(Constants.TXT_FORMAT)) ? new TextualIndexer() : new BinaryIndexer();
 
         long startIndexing = System.currentTimeMillis();
         indexer.indexCollection();

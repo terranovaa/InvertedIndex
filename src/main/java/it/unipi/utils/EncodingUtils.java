@@ -55,7 +55,6 @@ public class EncodingUtils {
         return bytesLength;
     }
 
-    // TODO merge the following two functions
     public static ArrayList<Integer> decode(byte[] byteStream) {
         ArrayList<Integer> numbers = new ArrayList<>();
         int n = 0;

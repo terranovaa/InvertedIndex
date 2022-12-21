@@ -38,6 +38,7 @@ public class LexiconTermIndexing extends LexiconTerm {
 
     public void addToPostingList(int docID) {
         if(lastDocIdInserted != docID){
+            //new document, thus new posting
             lastDocIdInserted = docID;
             postingListDocIds.add(docID);
             postingListFrequencies.add(1);
@@ -47,11 +48,6 @@ public class LexiconTermIndexing extends LexiconTerm {
             Integer frequency = postingListFrequencies.get(postingListFrequencies.size() - 1);
             postingListFrequencies.set(postingListFrequencies.size() - 1, frequency + 1);
         }
-    }
-
-    public void extendPostingList(ArrayList<Integer> docIDs, ArrayList<Integer> frequencies) {
-        postingListDocIds.addAll(docIDs);
-        postingListFrequencies.addAll(frequencies);
     }
 
 }

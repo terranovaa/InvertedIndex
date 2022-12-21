@@ -16,7 +16,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
     //encoded posting_list used for performance during merge
     private byte[] encodedDocIDs;
     private byte[] encodedFrequencies;
-    //used to keep pointers during merge
+    //used to keep file pointers during merge
     static private int docIDsFileOffset = 0;
     static private int frequenciesFileOffset = 0;
 
@@ -38,17 +38,20 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
     }
 
     public void mergeEncodedPostings(byte[] encodedDocIDs, byte[] encodedFrequencies){
+        //get current encoded partial posting list and extend with additional posting
         if(this.encodedDocIDs == null){
             this.encodedDocIDs = encodedDocIDs;
             this.encodedFrequencies = encodedFrequencies;
         } else {
             //doc_ids
             byte[] mergedDocIDsArray = new byte[this.encodedDocIDs.length + encodedDocIDs.length];
+            //fill the first part of the array with the array representing previous encoded posting list
             System.arraycopy(this.encodedDocIDs, 0, mergedDocIDsArray, 0, this.encodedDocIDs.length);
+            //fill the second part of the array with the array representing the newly added posting list
             System.arraycopy(encodedDocIDs, 0, mergedDocIDsArray, this.encodedDocIDs.length, encodedDocIDs.length);
             this.encodedDocIDs = mergedDocIDsArray;
 
-            //frequencies
+            //frequencies, the process is the same as for docIds
             byte[] mergedFrequenciesArray = new byte[this.encodedFrequencies.length + encodedFrequencies.length];
             System.arraycopy(this.encodedFrequencies, 0, mergedFrequenciesArray, 0, this.encodedFrequencies.length);
             System.arraycopy(encodedFrequencies, 0, mergedFrequenciesArray, this.encodedFrequencies.length, encodedFrequencies.length);
@@ -57,10 +60,10 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
     }
 
     public void computeStatistics(MappedByteBuffer docTableBuffer, CollectionStatistics collectionStatistics){
-        //TODO we are forced to decode postings to compute term upper bound...
+        //decode posting list
         this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
         this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
-        //compute termUpperBound
+        //compute termUpperBound and collection frequency
         this.termUpperBound = -1;
         int i = 0;
         int collectionFrequency = 0;
@@ -86,11 +89,14 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         //(doc id,offset) list for skip pointers
         LinkedHashMap<Integer, SkipPointerEntry> skipPointers = new LinkedHashMap<>();
 
+        //decode posting lists
         this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
         this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
 
+        //set document frequency
         this.documentFrequency = this.postingListDocIds.size();
 
+        //if the posting list is long, create skip pointers to be used for nextGEQ implementation
         if (this.documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
 
             //create sqrt(df) blocks of sqrt(df) size (rounded to the highest value when needed)
@@ -130,10 +136,12 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
             docIDStream.write(skipPointersBytes);
         }
 
+        //update general file docId offset and docid size
         docIDsFileOffset += this.encodedDocIDs.length;
         docIdsSize += this.encodedDocIDs.length;
         docIDStream.write(this.encodedDocIDs);
 
+        //update general file frequency offset and frequency size
         frequenciesFileOffset += this.encodedFrequencies.length;
         frequenciesSize += this.encodedFrequencies.length;
         frequenciesStream.write(this.encodedFrequencies);

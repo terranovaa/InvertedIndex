@@ -22,7 +22,7 @@ public class LexiconTerm {
     protected int docIdsSize;
     protected int frequenciesSize;
 
-    //dynamic pruning
+    //used for dynamic pruning
     protected double termUpperBound = 0;
 
     public LexiconTerm() {
@@ -88,7 +88,7 @@ public class LexiconTerm {
         byte[] lexiconEntry = new byte[Constants.LEXICON_ENTRY_SIZE];
         //variable number of bytes
         byte[] entryTerm = term.getBytes(StandardCharsets.UTF_8);
-        //fixed number of bytes, 4 for each integer, 8 for each long
+        //fixed number of bytes, 4 for each integer, 8 for each long, 8 for double
         byte[] entryDf = EncodingUtils.intToByteArray(documentFrequency);
         byte[] entryCf = EncodingUtils.intToByteArray(collectionFrequency);
         byte[] entryDocIDOffset = EncodingUtils.longToByteArray(docIdsOffset);
@@ -111,6 +111,7 @@ public class LexiconTerm {
     }
 
     public void deserializeBinary(byte[] buffer) {
+        //decode the term
         term = this.deserializeTerm(buffer);
         //decode the rest of the buffer
         documentFrequency = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 40);

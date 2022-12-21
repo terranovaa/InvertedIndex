@@ -9,9 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
+public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
 
-    public IndexerTextual() {
+    public TextualIndexer() {
         super(LexiconTermTextualIndexing::new, Constants.TXT_FORMAT);
     }
 

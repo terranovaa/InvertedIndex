@@ -26,6 +26,7 @@ public class QueryProcessor {
 
     private final SortedSet<DocumentScore> docsPriorityQueue;
     private HashSet<String> tokenSet = new HashSet<>();
+    private QueryType queryType;
 
     public final MappedByteBuffer lexiconBuffer;
     public final MappedByteBuffer docTableBuffer;
@@ -99,6 +100,12 @@ public class QueryProcessor {
             results.addAll(docsPriorityQueue);
 
             if (queryCache.getIfPresent(tokenSet) == null) {
+                if(queryType == QueryType.CONJUNCTIVE){
+                    tokenSet.add("and");
+                }
+                else{
+                    tokenSet.add("or");
+                }
                 queryCache.put(tokenSet, results);
             }
 
@@ -112,8 +119,6 @@ public class QueryProcessor {
 
         String[] tokens = TextProcessingUtils.tokenize(query);
 
-        QueryType queryType;
-
         if (tokens[0].equals("and")) {
             queryType = QueryType.CONJUNCTIVE;
             System.out.println("You have requested a conjunctive query with the following preprocessed tokens:");
@@ -124,7 +129,7 @@ public class QueryProcessor {
             throw new IllegalQueryTypeException();
         }
 
-        printTokens(Arrays.copyOfRange(tokens, 1, tokens.length));
+        printTokens(tokens);
 
         int limit = tokens.length;
         if (tokens.length > Constants.MAX_QUERY_LENGTH) {
@@ -143,10 +148,12 @@ public class QueryProcessor {
         }
 
         SortedSet<DocumentScore> documentScores;
+        tokenSet.add(tokens[0]);
         if ((documentScores = queryCache.getIfPresent(tokenSet)) != null) {
             docsPriorityQueue.addAll(documentScores);
             return true;
         }
+        tokenSet.remove(tokens[0]);
 
         // Using a TreeSet as the Posting Lists need to be sorted in increasing order of max score contribution
         ArrayList<PostingListInterface> postingLists = new ArrayList<>();
@@ -156,7 +163,14 @@ public class QueryProcessor {
         for (String token : tokenSet) {
             LexiconTerm lexiconTerm;
             lexiconTerm = DiskDataStructuresSearch.lexiconDiskSearch(token, numberOfTerms, lexiconBuffer);
-            if (lexiconTerm == null) continue;
+            if (lexiconTerm == null) {
+                if(queryType == QueryType.CONJUNCTIVE){
+                    return false;
+                }
+                else{
+                    continue;
+                }
+            }
             lexiconTerms.put(token, lexiconTerm);
             PostingListInterface pl = new PostingListInterface(lexiconTerm);
             postingLists.add(pl);
@@ -197,7 +211,7 @@ public class QueryProcessor {
     }
 
     private void printTokens(String[] tokens){
-        for(int i = 0; i < tokens.length; ++i)
+        for(int i = 1; i < tokens.length; ++i)
             if(i < tokens.length-1)
                 System.out.print(tokens[i] + ", ");
             else

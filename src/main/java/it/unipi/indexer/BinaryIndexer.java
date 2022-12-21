@@ -15,8 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
-    public IndexerBinary() {
+public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
+    public BinaryIndexer() {
         super(LexiconTermBinaryIndexing::new, Constants.DAT_FORMAT);
     }
 
@@ -117,25 +117,29 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
                 //create a new lexiconTerm object for the min term
                 LexiconTermBinaryIndexing referenceLexiconTerm = new LexiconTermBinaryIndexing(nextTerm[lexiconsToMerge.get(0)].getTerm());
 
-                //merge everything
+                //merge encoded posting lists
                 for (Integer blockIndex: lexiconsToMerge){
                     LexiconTermBinaryIndexing nextBlockToMerge = nextTerm[blockIndex];
-
-                    //merge statistics
-                    //referenceLexiconTerm.setDocumentFrequency(referenceLexiconTerm.getDocumentFrequency() + nextBlockToMerge.getDocumentFrequency());
-                    //referenceLexiconTerm.setCollectionFrequency(referenceLexiconTerm.getCollectionFrequency() + nextBlockToMerge.getCollectionFrequency());
 
                     //get posting list from disk
                     byte[] postingDocIDs = postingsDocIdsStreams.get(blockIndex).readNBytes(nextBlockToMerge.getDocIdsSize());
                     byte[] postingFrequencies = postingsFrequenciesStreams.get(blockIndex).readNBytes(nextBlockToMerge.getFrequenciesSize());
                     referenceLexiconTerm.mergeEncodedPostings(postingDocIDs, postingFrequencies);
 
+                    //read the next entry from file
                     bytesRead[blockIndex] = lexiconStreams.get(blockIndex).readNBytes(nextLexiconEntry[blockIndex], 0, Constants.LEXICON_ENTRY_SIZE);
                     nextTerm[blockIndex].deserialize(nextLexiconEntry[blockIndex]);
+                    //if the lexicon file is finished, we remove the block from the active ones because the block contains no more terms
                     if(bytesRead[blockIndex] < Constants.LEXICON_ENTRY_SIZE){
                         activeBlocks.remove(blockIndex);
+                        //close also the fileInputStreams
+                        lexiconStreams.get(blockIndex).close();
+                        postingsDocIdsStreams.get(blockIndex).close();
+                        postingsFrequenciesStreams.get(blockIndex).close();
                     }
                 }
+
+                //write term to lexicon and merged posting lists to inverted index
                 referenceLexiconTerm.writeToDisk(outputDocIdsStream, outputFrequenciesStream, outputLexiconStream);
             }
 
@@ -144,6 +148,7 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
             outputFrequenciesStream.close();
             outputLexiconStream.close();
 
+            //write collectionStatistics to file
             try (FileOutputStream fosCollectionStatistics = new FileOutputStream(Constants.COLLECTION_STATISTICS_FILE_PATH + Constants.DAT_FORMAT)){
                 fosCollectionStatistics.write(collectionStatistics.serializeBinary());
             } catch (IOException e) {
@@ -183,7 +188,7 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
                     int blockSize = (int) Math.ceil(Math.sqrt(entry.getDocumentFrequency()));
                     int numSkipBlocks = (int) Math.ceil((double)entry.getDocumentFrequency() / (double)blockSize);
                     dimSkipPointers = 20 * (numSkipBlocks-1);
-                    //FileInputStream skip method doesn't work ¯\_(ツ)_/¯
+                    //read and throw away bytes corresponding to skip pointers
                     byte[] skip = new byte[dimSkipPointers];
                     inDocIdStream.read(skip);
                 }
@@ -196,14 +201,9 @@ public class IndexerBinary extends Indexer<LexiconTermBinaryIndexing> {
                 //compute term upper bound and collection frequency
                 entry.computeStatistics(docTableBuffer, cs);
 
-                //TODO could change only relevant bytes inside previously read buffer instead of re-serializing everything?
                 //write to definitive lexicon file
                 outLexiconStream.write(entry.serialize());
                 bytesRead = inLexiconStream.read(buffer);
-
-                //posting lists not needed, to save memory we remove them (we are keeping the terms with the larger posting lists)
-                entry.setPostingListDocIds(null);
-                entry.setPostingListFrequencies(null);
             }
         } catch (IOException ee) {
             ee.printStackTrace();

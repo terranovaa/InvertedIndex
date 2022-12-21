@@ -92,12 +92,15 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
                     System.out.println(currentDocId);
                 }
 
+                //if the document contained only stopwords, we don't consider it
                 if (docLen == 0) continue;
+
                 documentTable.put(currentDocId, new Document(currentDocId, docNo, docLen));
 
                 currentDocId++;
             }
 
+            //final statistics
             collectionStatistics.setNumDocs(currentDocId);
             collectionStatistics.setAvgDocLen((double) numTerms / currentDocId);
 
@@ -171,12 +174,14 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
         ArrayList<Integer> lexiconsToMerge = new ArrayList<>();
 
         String minTerm = null;
+        //search for the minimum term among the blocks that aren't finished yet
         for(Integer blockIndex: activeBlocks){
             if (minTerm == null || nextTerm[blockIndex].getTerm().compareTo(minTerm) < 0) {
                 minTerm = nextTerm[blockIndex].getTerm();
             }
         }
 
+        //get the blocks who contain the current minimum term
         for(Integer blockIndex: activeBlocks){
             if(nextTerm[blockIndex].getTerm().equals(minTerm)){
                 lexiconsToMerge.add(blockIndex);

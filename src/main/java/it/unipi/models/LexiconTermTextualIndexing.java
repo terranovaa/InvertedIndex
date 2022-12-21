@@ -2,6 +2,7 @@ package it.unipi.models;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class LexiconTermTextualIndexing extends LexiconTermIndexing {
@@ -42,6 +43,12 @@ public class LexiconTermTextualIndexing extends LexiconTermIndexing {
             if(i != lexiconEntry.length-1)
                 lexiconStream.write(lexiconEntry[i]+",");
             else lexiconStream.write(lexiconEntry[i]+"\n");
+    }
+
+    public void extendPostingList(ArrayList<Integer> docIDs, ArrayList<Integer> frequencies) {
+        //used during merge
+        postingListDocIds.addAll(docIDs);
+        postingListFrequencies.addAll(frequencies);
     }
 
 }

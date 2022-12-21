@@ -7,7 +7,6 @@
 /target/
 /resources/document_table*
 /resources/merged_lexicon.*
-/resources/warmup_*
 /resources/lexicon.*
 /resources/postings_doc_ids.*
 /resources/postings_frequencies.*
