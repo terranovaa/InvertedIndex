@@ -54,18 +54,4 @@ public class LexiconTermIndexing extends LexiconTerm {
         postingListFrequencies.addAll(frequencies);
     }
 
-    //DEBUG
-    public void printInfo(int numPostings){
-        System.out.println("term: " + term +
-                " | df: " + documentFrequency +
-                " | cf: " + collectionFrequency +
-                " | dOffset: " + docIdsOffset +
-                " | fOffset: " + frequenciesOffset +
-                " | dSize: " + docIdsSize +
-                " | fSize: " + frequenciesSize);
-        for(int i = 0; i < numPostings; i++){
-            System.out.print("[" + "docID: " + postingListDocIds.get(i) + " | freq: " + postingListFrequencies.get(i) + "] ");
-        }
-        System.out.println("\n------------------------------");
-    }
 }

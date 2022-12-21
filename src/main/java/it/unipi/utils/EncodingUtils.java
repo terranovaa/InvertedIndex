@@ -1,5 +1,7 @@
 package it.unipi.utils;
 
+import com.google.common.primitives.Bytes;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -71,19 +73,7 @@ public class EncodingUtils {
     }
 
     public static ArrayList<Integer> decode(List<Byte> byteStream) {
-        ArrayList<Integer> numbers = new ArrayList<>();
-        int n = 0;
-        for (byte byteElem : byteStream) {
-            int unsignedByte = byteElem & 0xff;
-            if (unsignedByte < 128) {
-                n = 128 * n + unsignedByte;
-            } else {
-                n = 128 * n + (unsignedByte - 128);
-                numbers.add(n);
-                n = 0;
-            }
-        }
-        return numbers;
+        return decode(Bytes.toArray(byteStream));
     }
 
     //given an integer return the byte representation
@@ -97,17 +87,6 @@ public class EncodingUtils {
 
     public static byte[] longToByteArray(long value) {
         return ByteBuffer.allocate(8).putLong(value).array();
-    }
-
-    public static byte[] intListToByteArray(List<Integer> values) {
-        byte[] bytes = new byte[values.size() * 4];
-        int i = 0;
-        for (Integer value: values) {
-            byte[] tempBytes = intToByteArray(value);
-            System.arraycopy(tempBytes, 0, bytes, (i * 4), 4);
-            i++;
-        }
-        return bytes;
     }
 
     public static int byteArrayToInt(byte[] value, int startIndex) {

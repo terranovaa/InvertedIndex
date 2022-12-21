@@ -49,9 +49,4 @@ public class CollectionStatistics {
         return numDocs + "," + avgDocLen;
     }
 
-    public void deserializeFromString(String buffer) {
-        List<String> elements = Arrays.asList(buffer.split(","));
-        numDocs = Integer.parseInt(elements.get(0));
-        avgDocLen = Double.parseDouble(elements.get(1));
-    }
 }

@@ -6,7 +6,6 @@ import it.unipi.models.LexiconTerm;
 public class ScoringFunctions {
     public static double BM25(int docLength, int termDocFreq, LexiconTerm term, CollectionStatistics cs){
         int docFreq = term.getDocumentFrequency();
-        // TODO I think we should compute it during indexing and save it in CollectionStatistics, also IDF?
         double avgDocLen = cs.getAvgDocLen();
         // compute partial score
         return ((double) termDocFreq / ((Constants.K_BM25*((1 - Constants.B_BM25) + Constants.B_BM25 * ( (double) docLength / avgDocLen))) + termDocFreq)) * Math.log((double) cs.getNumDocs() / docFreq);

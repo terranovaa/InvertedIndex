@@ -20,13 +20,6 @@ public class Document {
         this.length = length;
     }
 
-    public void printInfo(){
-        System.out.println("doc_id: " + docId +
-                " | doc_no: " + docNo +
-                " | length: " + length);
-        System.out.println("\n------------------------------");
-    }
-
     public int getDocId() {
         return docId;
     }
@@ -37,14 +30,6 @@ public class Document {
 
     public String getDocNo() {
         return docNo;
-    }
-
-    public void setDocId(int docId) {
-        this.docId = docId;
-    }
-
-    public void setDocNo(String docNo) {
-        this.docNo = docNo;
     }
 
     public void setLength(int length) {

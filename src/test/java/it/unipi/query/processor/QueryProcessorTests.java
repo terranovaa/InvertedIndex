@@ -77,7 +77,7 @@ public class QueryProcessorTests {
         int k = 100;
         ArrayList<List<String>> queries = new ArrayList<>();
         try (BufferedReader TSVReader = new BufferedReader(new FileReader("./collection/queries.dev.small.tsv"))) {
-            String line = null;
+            String line;
             while ((line = TSVReader.readLine()) != null) {
                 String[] lines = line.split("\t");
                 queries.add(List.of(lines));

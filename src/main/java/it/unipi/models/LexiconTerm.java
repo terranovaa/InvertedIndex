@@ -63,16 +63,8 @@ public class LexiconTerm {
         this.docIdsOffset = docIdsOffset;
     }
 
-    public long getDocIdsOffset() {
-        return docIdsOffset;
-    }
-
     public void setFrequenciesOffset(long frequenciesOffset) {
         this.frequenciesOffset = frequenciesOffset;
-    }
-
-    public long getFrequenciesOffset() {
-        return frequenciesOffset;
     }
 
     public int getDocIdsSize() {
@@ -91,14 +83,6 @@ public class LexiconTerm {
         this.frequenciesSize = frequenciesSize;
     }
 
-    public double getTermUpperBound() {
-        return termUpperBound;
-    }
-
-    public void setTermUpperBound(double termUpperBound) {
-        this.termUpperBound = termUpperBound;
-    }
-
     public byte[] serializeBinary() {
 
         byte[] lexiconEntry = new byte[Constants.LEXICON_ENTRY_SIZE];
@@ -111,7 +95,7 @@ public class LexiconTerm {
         byte[] entryFrequenciesOffset = EncodingUtils.longToByteArray(frequenciesOffset);
         byte[] entryDocIDSize = EncodingUtils.intToByteArray(docIdsSize);
         byte[] entryFrequenciesSize = EncodingUtils.intToByteArray(frequenciesSize);
-        byte[] entryTermUpperBound = EncodingUtils.doubleToByteArray(termUpperBound);;
+        byte[] entryTermUpperBound = EncodingUtils.doubleToByteArray(termUpperBound);
 
         //fill the first part of the buffer with the utf-8 representation of the term, leave the rest to 0
         System.arraycopy(entryTerm, 0, lexiconEntry, 0, entryTerm.length);

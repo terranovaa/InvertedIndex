@@ -27,7 +27,7 @@ public class IndexerTextual extends Indexer<LexiconTermTextualIndexing> {
         try (BufferedWriter postingsDocIdsStream = new BufferedWriter(new FileWriter(postingsDocIdsFile));
              BufferedWriter postingsFrequenciesStream = new BufferedWriter(new FileWriter(postingsFrequenciesFile));
              BufferedWriter lexiconStream = new BufferedWriter(new FileWriter(lexiconFile));
-             BufferedWriter documentTableStream = new BufferedWriter(new FileWriter(documentTableFile));
+             BufferedWriter documentTableStream = new BufferedWriter(new FileWriter(documentTableFile))
         ) {
             for (Map.Entry<String, LexiconTermTextualIndexing> entry : lexicon.entrySet()) {
                 LexiconTermTextualIndexing lexiconTerm = entry.getValue();

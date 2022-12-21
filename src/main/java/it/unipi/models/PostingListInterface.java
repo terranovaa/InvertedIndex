@@ -128,7 +128,6 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
         return true;
     }
 
-    // TODO need to check if it works
     public boolean nextGEQ(int docId) {
 
         if (currentDocID >= docId) return true;
