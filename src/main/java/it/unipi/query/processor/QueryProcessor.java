@@ -2,18 +2,14 @@ package it.unipi.query.processor;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import it.unipi.exceptions.IllegalQueryTypeException;
 import it.unipi.exceptions.NoResultsFoundException;
-import it.unipi.exceptions.TermNotFoundException;
 import it.unipi.models.*;
 import it.unipi.utils.Constants;
 import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.ScoringFunctions;
 import it.unipi.utils.TextProcessingUtils;
 
-import javax.annotation.Nonnull;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
