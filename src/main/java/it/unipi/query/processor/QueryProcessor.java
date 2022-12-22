@@ -113,7 +113,6 @@ public class QueryProcessor {
 
             // updating the query cache
             if (queryCache.getIfPresent(tokenSet) == null) {
-                // TODO check this
                 if(queryType == QueryType.CONJUNCTIVE){
                     tokenSet.add("and");
                 }
