@@ -9,20 +9,25 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
+// base class used to store the essential info regarding a term stored in the lexicon
 public class LexiconTerm {
 
     protected String term;
-    //number of documents containing the term
+    // number of documents containing the term
     protected int documentFrequency;
-    //number of total occurrences of the term
+    // number of total occurrences of the term
     protected int collectionFrequency;
 
+    // offset of the first docId in the docIds posting list
     protected long docIdsOffset;
+    // offset of the first frequency in the docIds posting list
     protected long frequenciesOffset;
+    // size in bytes of the term's docIds posting list
     protected int docIdsSize;
+    // size in bytes of the term's frequencies posting list
     protected int frequenciesSize;
 
-    //used for dynamic pruning
+    // term upper bound used for dynamic pruning
     protected double termUpperBound = 0;
 
     public LexiconTerm() {
@@ -83,12 +88,14 @@ public class LexiconTerm {
         this.frequenciesSize = frequenciesSize;
     }
 
+    // used for serializing an entry in binary format
     public byte[] serializeBinary() {
 
+        // fixed number of bytes for binary search
         byte[] lexiconEntry = new byte[Constants.LEXICON_ENTRY_SIZE];
-        //variable number of bytes
+        // variable number of bytes
         byte[] entryTerm = term.getBytes(StandardCharsets.UTF_8);
-        //fixed number of bytes, 4 for each integer, 8 for each long, 8 for double
+        // fixed number of bytes, 4 for each integer, 8 for each long, 8 for double
         byte[] entryDf = EncodingUtils.intToByteArray(documentFrequency);
         byte[] entryCf = EncodingUtils.intToByteArray(collectionFrequency);
         byte[] entryDocIDOffset = EncodingUtils.longToByteArray(docIdsOffset);
@@ -97,9 +104,9 @@ public class LexiconTerm {
         byte[] entryFrequenciesSize = EncodingUtils.intToByteArray(frequenciesSize);
         byte[] entryTermUpperBound = EncodingUtils.doubleToByteArray(termUpperBound);
 
-        //fill the first part of the buffer with the utf-8 representation of the term, leave the rest to 0
+        // filling the first part of the buffer with the utf-8 representation of the term, leaving the rest to 0
         System.arraycopy(entryTerm, 0, lexiconEntry, 0, entryTerm.length);
-        //fill the last part of the buffer with statistics and offsets
+        //filling the last part of the buffer with statistics and offsets
         System.arraycopy(entryDf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 40, 4);
         System.arraycopy(entryCf, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 36, 4);
         System.arraycopy(entryDocIDOffset, 0, lexiconEntry, Constants.LEXICON_ENTRY_SIZE - 32, 8);
@@ -110,10 +117,11 @@ public class LexiconTerm {
         return lexiconEntry;
     }
 
+    // used for deserializing an entry from binary format to a LexiconTerm object
     public void deserializeBinary(byte[] buffer) {
-        //decode the term
+        // decoding the term
         term = this.deserializeTerm(buffer);
-        //decode the rest of the buffer
+        // decoding the rest of the buffer
         documentFrequency = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 40);
         collectionFrequency = EncodingUtils.byteArrayToInt(buffer, Constants.LEXICON_ENTRY_SIZE - 36);
         docIdsOffset = EncodingUtils.byteArrayToLong(buffer, Constants.LEXICON_ENTRY_SIZE - 32);
@@ -124,7 +132,7 @@ public class LexiconTerm {
     }
 
     public String deserializeTerm(byte[] buffer) {
-        //to decode the term, detect the position of the first byte equal 0
+        // to decode the term, detect the position of the first byte equal to 0
         int endOfString = 0;
         while(buffer[endOfString] != 0){
             endOfString++;

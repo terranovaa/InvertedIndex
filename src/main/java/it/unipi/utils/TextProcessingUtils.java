@@ -9,9 +9,13 @@ import java.util.HashSet;
 import java.util.regex.Pattern;
 
 public class TextProcessingUtils {
+    // we use a hashset because contains() is O(1)
     private static final HashSet<String> stopWords;
+    // Snowball stemmer, better than Porter
     private static final englishStemmer englishStemmer = new englishStemmer();
+    // removes punctuation and strange characters
     static Pattern cleanRegex = Pattern.compile("[^a-zA-Z0-9]");
+    // splits by spaces
     static Pattern splitRegex = Pattern.compile(" +");
 
     static {
@@ -26,6 +30,7 @@ public class TextProcessingUtils {
         return stopWords.contains(token);
     }
 
+    // token cannot be longer than MAX_TERM_LEN
     public static String truncateToken(String token) {
         return token.length() > Constants.MAX_TERM_LEN ? token.substring(0, Constants.MAX_TERM_LEN) : token;
     }

@@ -8,7 +8,8 @@ import java.util.ArrayList;
 
 public class Document {
     private int docId;
-    private int length; // number of characters
+    // length of the document (number of terms, stop words are excluded)
+    private int length;
     private String docNo;
 
     public Document() {
@@ -37,25 +38,25 @@ public class Document {
     }
 
 
-    //encode document object as an array of bytes with fixed dimension
+    // encodes a document object as an array of bytes with fixed dimension
      public byte[] serializeBinary() {
 
          byte[] documentEntry = new byte[Constants.DOCUMENT_ENTRY_SIZE];
-         //variable number of bytes
+         // variable number of bytes
          byte[] docNo = this.getDocNo().getBytes(StandardCharsets.UTF_8);
-         //fixed number of bytes, 4 for each integer
+         // fixed number of bytes, 4 for each integer
          byte[] docId = EncodingUtils.intToByteArray(this.getDocId());
          byte[] docLength = EncodingUtils.intToByteArray(this.getLength());
 
-         //fill the first part of the buffer with the utf-8 representation of the doc_no, leave the rest to 0
+         // filling the first part of the buffer with the utf-8 representation of the doc_no, leaving the rest to 0
          System.arraycopy(docNo, 0, documentEntry, 0, docNo.length);
-         //fill the last part of the buffer
+         // filling the last part of the buffer
          System.arraycopy(docId, 0, documentEntry, Constants.DOCUMENT_ENTRY_SIZE - 8, 4);
          System.arraycopy(docLength, 0, documentEntry, Constants.DOCUMENT_ENTRY_SIZE - 4, 4);
          return documentEntry;
     }
 
-    //encode document object as an array of Strings
+    // encodes a document object as an array of Strings
     public String[] serializeTextual() {
         ArrayList<String> list = new ArrayList<>();
         list.add(docNo);
@@ -65,18 +66,17 @@ public class Document {
     }
 
 
-    //decode a disk-based array of bytes representing a document index entry in a Document object
+    // decodes a disk-based array of bytes representing a document index entry in a Document object
     public void deserializeBinary(byte[] buffer) {
-        //to decode the docNo, detect the position of the first byte equal 0
+        // to decode the docNo, detect the position of the first byte equal 0
         int endOfString = 0;
         while(buffer[endOfString] != 0){
             endOfString++;
         }
-        //parse only the first part of the buffer until the first byte equal 0
+        // parsing only the first part of the buffer until the first byte equal to 0
         docNo = new String(buffer, 0, endOfString, StandardCharsets.UTF_8);
-        //decode the rest of the buffer
+        // decoding the rest of the buffer
         docId = EncodingUtils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE - 8);
         length = EncodingUtils.byteArrayToInt(buffer, Constants.DOCUMENT_ENTRY_SIZE - 4);
     }
-
 }

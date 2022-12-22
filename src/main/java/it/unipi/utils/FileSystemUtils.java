@@ -10,6 +10,7 @@ import java.util.stream.Stream;
 
 public final class FileSystemUtils {
 
+    // creates the necessary directories in order to avoid exceptions
     public static void setupEnvironment(){
         try {
             for(String directory: Constants.DIRECTORIES_PATHS)
@@ -19,6 +20,7 @@ public final class FileSystemUtils {
         }
     }
 
+    // removes the folders containing the partial files
     public static void deleteTemporaryFolders(){
         for(String directory: Constants.TEMPORARY_DIRECTORIES_PATHS) {
             Path pathToBeDeleted = Paths.get(directory);

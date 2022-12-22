@@ -18,6 +18,7 @@ public class DiskDataStructuresSearch {
         return collectionStatistics;
     }
 
+    // retrieves a Document from the doc table given a docId
     public static Document docTableDiskSearch(int docId, MappedByteBuffer docTableBuffer) {
         Document doc = new Document();
         int fileSeekPointer = docId * Constants.DOCUMENT_ENTRY_SIZE;
@@ -28,6 +29,7 @@ public class DiskDataStructuresSearch {
         return doc;
     }
 
+    // retrieves a term from the lexicon using binary search
     public static LexiconTerm lexiconDiskSearch(String term, int numberOfTerms, MappedByteBuffer lexiconBuffer) {
         int pointer;
 

@@ -14,7 +14,7 @@ public class Main {
     public static void main(String[] args) throws IOException {
         args = new String[]{"query"};
         if (args.length == 0){
-            // default case: no args => indexing, DAT format, with stemming and stopword removal
+            // default case: no args => indexing, DAT format
             index(Constants.DAT_FORMAT);
         } else {
             if (args[0].equals("index")){
@@ -38,25 +38,30 @@ public class Main {
 
     public static void index(String fileFormat) throws IOException{
 
+        // creating the folders
         FileSystemUtils.setupEnvironment();
 
         Indexer indexer = (fileFormat.equalsIgnoreCase(Constants.TXT_FORMAT)) ? new TextualIndexer() : new BinaryIndexer();
 
+        // indexing
         long startIndexing = System.currentTimeMillis();
         indexer.indexCollection();
         long endIndexing = System.currentTimeMillis();
         System.out.println("Indexed in " + (endIndexing - startIndexing) + " ms");
 
+        // merging
         long startMerge = System.currentTimeMillis();
         indexer.merge();
         long endMerge = System.currentTimeMillis();
         System.out.println("Merged in " + (endMerge - startMerge) + " ms");
 
+        // refining
         long startRefineIndex = System.currentTimeMillis();
         indexer.refineIndex();
         long endRefineIndex = System.currentTimeMillis();
         System.out.println("Refined in " + (endRefineIndex - startRefineIndex) + " ms");
 
+        // deleting the folders
         FileSystemUtils.deleteTemporaryFolders();
     }
 }

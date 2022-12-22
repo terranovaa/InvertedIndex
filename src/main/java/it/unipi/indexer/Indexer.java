@@ -19,30 +19,37 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Supplier;
 
+// class is parametrized due to the fact that indexing can be either Binary or Textual (ASCII)
 abstract public class Indexer <T extends LexiconTermIndexing> {
 
     // current doc id
     protected int currentDocId = 0;
     // useful for giving different names to partial files
     protected int currentBlock = 0;
-    // Value needs to be changed
+    // partial lexicon. Using a TreeMap in order to have lexicographical order (insert operation is O(log(N)))
     protected final TreeMap<String, T> lexicon = new TreeMap<>();
+    // used to call the right constructor based on the type of T
     private final Supplier<? extends T> lexiconTermConstructor;
+    // doc table. Using a LinkedHashMap because we need to maintain the insertion order
     protected final LinkedHashMap<Integer, Document> documentTable = new LinkedHashMap<>();
+    // collection statistics
     protected final CollectionStatistics collectionStatistics = new CollectionStatistics();
+    // used to check for memory occupancy during indexing
     protected final MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
+    // can be .txt or .dat
     protected final String FILE_EXTENSION;
 
     private int numTerms = 0;
 
     public Indexer(Supplier<? extends T> lexiconTermConstructor, String fileExtension) {
         this.lexiconTermConstructor = lexiconTermConstructor;
-        FILE_EXTENSION = fileExtension;
+        FILE_EXTENSION = fileExtension.toLowerCase();
         System.out.println("Using "+ FILE_EXTENSION + " as file extension..");
     }
 
     public void indexCollection() throws IOException {
         File file = new File(Constants.COLLECTION_PATH);
+        // reading the compressed tar.gz file
         final TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(file)));
         TarArchiveEntry tarArchiveEntry = tarArchiveInputStream.getNextTarEntry();
         BufferedReader bufferedReader;
@@ -50,57 +57,60 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
             // it uses MalformedInputException internally and replace the malformed character as default operation
             bufferedReader = new BufferedReader(new InputStreamReader(tarArchiveInputStream, StandardCharsets.UTF_8));
             String line;
+            // reading one line at a time (one line corresponds to one document)
             while ((line = bufferedReader.readLine()) != null) {
-                // check if the occupied memory has reached the threshold
+                // checking if the used memory has reached the threshold
                 checkMemory();
 
-                // doc_no and document are split by \t
+                // doc_no and document are separated by \t
                 String docNo = line.substring(0, line.indexOf("\t"));
                 String document = line.substring(line.indexOf("\t") + 1);
 
-                // if the document is empty we skip it
+                // if the document is empty we move on
                 if(document.length() == 0) continue;
 
                 int docLen = 0;
 
-                // We remove punctuation and split the document into tokens
+                // Removing punctuation and splitting the document into tokens
                 String[] tokens = TextProcessingUtils.tokenize(document);
 
                 for (String token: tokens) {
-                    //if the token is a stop word don't consider it
+                    // if the token is a stop word move on
                     if (TextProcessingUtils.isAStopWord(token))
                         continue;
                     docLen++;
                     // if the token is longer than 20 chars we truncate it
                     token = TextProcessingUtils.truncateToken(token);
-                    // we apply the snowball stemmer
+                    // applying the snowball stemmer
                     token = TextProcessingUtils.stemToken(token);
                     // updating collection statistics
                     numTerms++;
-                    //check if the token is already in the lexicon, if not create new entry
+                    // if the token is not already in the lexicon we create a new entry
                     T lexiconEntry;
-                    if ((lexiconEntry = lexicon.get(token)) == null) {
-                        lexiconEntry = lexiconTermConstructor.get();
+                    if ((lexiconEntry = lexicon.get(token)) == null) { // O(1)
+                        lexiconEntry = lexiconTermConstructor.get(); // calls the constructor based on T
                         lexiconEntry.setTerm(token);
                         lexicon.put(token, lexiconEntry);
                     }
+                    // if the docId is already in the posting of the term we increase its frequency, otherwise we add it to the list with frequency 1
                     lexiconEntry.addToPostingList(currentDocId);
                 }
 
-                // DEBUG
+                // used for checking progress
                 if (currentDocId % 100000 == 0) {
-                    System.out.println(currentDocId);
+                    System.out.println("Analyzing document n. " + currentDocId);
                 }
 
-                //if the document contained only stopwords, we don't consider it
+                // if the document contains only stopwords, we move on
                 if (docLen == 0) continue;
 
+                // saving the document in the doc
                 documentTable.put(currentDocId, new Document(currentDocId, docNo, docLen));
 
                 currentDocId++;
             }
 
-            //final statistics
+            // final statistics
             collectionStatistics.setNumDocs(currentDocId);
             collectionStatistics.setAvgDocLen((double) numTerms / currentDocId);
 
@@ -112,6 +122,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
         }
     }
 
+    // function used for checking used heap
     protected void checkMemory(){
         if (memoryAboveThreshold(Constants.MEMORY_FULL_THRESHOLD_PERCENTAGE)) {
             writeToDisk();
@@ -135,6 +146,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
         return usedHeap >= heapThreshold;
     }
 
+    // these functions are abstract because their implementation depends on the type of indexing
     abstract void writeToDisk();
 
     abstract public void merge();
@@ -143,9 +155,13 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
 
     // same function for both binary and textual indexing, it just concatenates the partial files
     protected void mergePartialDocumentTables() throws IOException {
+
         int nextBlock=0;
-        int numberOfBlocks=currentBlock+1;
+        int numberOfBlocks=currentBlock + 1;
+
         String[] documentTableInputFiles = new String[currentBlock+1];
+
+        // opening the partial files
         while(nextBlock < numberOfBlocks){
             documentTableInputFiles[nextBlock] = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + nextBlock + FILE_EXTENSION;
             nextBlock++;
@@ -156,32 +172,34 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
         WritableByteChannel targetChannel = fos.getChannel();
 
         for (String documentTableInputFile : documentTableInputFiles) {
-            // get channel for input files
+            // getting channel for input files
             FileInputStream fis = new FileInputStream(documentTableInputFile);
             FileChannel inputChannel = fis.getChannel();
 
-            // transfer data from input channel to output channel
+            // transferring data from input channel to output channel
             inputChannel.transferTo(0, inputChannel.size(), targetChannel);
 
-            // close the input channel
+            // closing the input channel
             inputChannel.close();
             fis.close();
         }
     }
 
+    // this function gets the indexes of the blocks containing the minimum term in lexicographical order
     protected ArrayList<Integer> getLexiconsToMerge(List<Integer> activeBlocks, T[] nextTerm) {
 
         ArrayList<Integer> lexiconsToMerge = new ArrayList<>();
 
         String minTerm = null;
-        //search for the minimum term among the blocks that aren't finished yet
+
+        //searching for the minimum term among the blocks that aren't finished yet
         for(Integer blockIndex: activeBlocks){
             if (minTerm == null || nextTerm[blockIndex].getTerm().compareTo(minTerm) < 0) {
                 minTerm = nextTerm[blockIndex].getTerm();
             }
         }
 
-        //get the blocks who contain the current minimum term
+        //getting the blocks that contain the current minimum term
         for(Integer blockIndex: activeBlocks){
             if(nextTerm[blockIndex].getTerm().equals(minTerm)){
                 lexiconsToMerge.add(blockIndex);

@@ -6,7 +6,4 @@ public class IllegalQueryTypeException extends Exception {
         super("Query type not supported...");
     }
 
-    public IllegalQueryTypeException(String type) {
-        super("Query of type " + type + " not supported...");
-    }
 }

@@ -2,12 +2,11 @@ package it.unipi.models;
 
 import it.unipi.utils.EncodingUtils;
 
-import java.util.Arrays;
-import java.util.List;
-
 public class CollectionStatistics {
 
+    // number of documents in the collection
     private int numDocs;
+    // average document length
     private double avgDocLen;
 
     public CollectionStatistics() {

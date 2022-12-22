@@ -2,6 +2,7 @@ package it.unipi.models;
 
 import javax.annotation.Nonnull;
 
+// immutable class used for storing the BM25 score of a document during query processing
 public record DocumentScore(String docNo, double score) implements Comparable<DocumentScore> {
 
     @Override

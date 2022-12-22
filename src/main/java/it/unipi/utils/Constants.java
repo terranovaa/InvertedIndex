@@ -30,18 +30,20 @@ public final class Constants {
     public static final double MEMORY_FULL_THRESHOLD_PERCENTAGE = 0.75;
     public static final double MEMORY_ENOUGH_THRESHOLD_PERCENTAGE = 0.25;
 
-    // 20 (term) + 4 (df) + 4 (cf) + 8 (docIdOffset) + 8 (freqOffset) + 4 (docIdSize) + 4 (docIdSize) + 8 (termUpperBound) = 92
+    // 20 (term) + 4 (df) + 4 (cf) + 8 (docIdOffset) + 8 (freqOffset) + 4 (docIdSize) + 4 (docIdSize) + 8 (termUpperBound) = 60
     public static final int LEXICON_ENTRY_SIZE = 60;
     // doc_no 30 byte + 2*4
     public static final int DOCUMENT_ENTRY_SIZE = 38;
 
     public static final int SKIP_POINTERS_THRESHOLD = 1024;
-    public static final int MAX_TERM_LEN = 20;
+    public static final int SKIP_BLOCK_DIMENSION = 20; // in bytes
+    public static final int MAX_TERM_LEN = 20; // in bytes
 
+    // using typical values
     public static final double B_BM25 = 0.75;
     public static final double K_BM25 = 1.2;
 
-    public static final int NUMBER_OF_OUTPUT_DOCUMENTS = 10;
+    public static final int NUMBER_OF_OUTPUT_DOCUMENTS = 20;
     public static final int MAX_QUERY_LENGTH = 32;
 
 }

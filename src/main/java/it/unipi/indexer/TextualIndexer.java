@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+// This class was used when we were building the index just to check if everything worked
 public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
 
     public TextualIndexer() {
@@ -17,49 +18,59 @@ public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
 
     @Override
     protected void writeToDisk(){
-        System.out.println("Writing to disk in textual format..");
-        String postingsDocIdsFile = Constants.PARTIAL_POSTINGS_DOC_IDS_FILE_PATH + currentBlock + FILE_EXTENSION.toLowerCase();
-        String postingsFrequenciesFile = Constants.PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH + currentBlock + FILE_EXTENSION.toLowerCase();
-        String lexiconFile = Constants.PARTIAL_LEXICON_FILE_PATH + currentBlock + FILE_EXTENSION.toLowerCase();
-        String documentTableFile = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + currentBlock + FILE_EXTENSION.toLowerCase();
+
+        // partial file paths
+        String postingsDocIdsFile = Constants.PARTIAL_POSTINGS_DOC_IDS_FILE_PATH + currentBlock + FILE_EXTENSION;
+        String postingsFrequenciesFile = Constants.PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH + currentBlock + FILE_EXTENSION;
+        String lexiconFile = Constants.PARTIAL_LEXICON_FILE_PATH + currentBlock + FILE_EXTENSION;
+        String documentTableFile = Constants.PARTIAL_DOCUMENT_TABLE_FILE_PATH + currentBlock + FILE_EXTENSION;
 
         long start = System.currentTimeMillis();
+
+        // opening the buffered writers with try-with-resources
         try (BufferedWriter postingsDocIdsStream = new BufferedWriter(new FileWriter(postingsDocIdsFile));
              BufferedWriter postingsFrequenciesStream = new BufferedWriter(new FileWriter(postingsFrequenciesFile));
              BufferedWriter lexiconStream = new BufferedWriter(new FileWriter(lexiconFile));
              BufferedWriter documentTableStream = new BufferedWriter(new FileWriter(documentTableFile))
         ) {
+            // looping over the lexicon
             for (Map.Entry<String, LexiconTermTextualIndexing> entry : lexicon.entrySet()) {
                 LexiconTermTextualIndexing lexiconTerm = entry.getValue();
-                //docIDs
+
+                // docIDs posting list
                 List<Integer> docIDs = lexiconTerm.getPostingListDocIds();
-                for(int i = 0; i < docIDs.size(); ++i)
-                    if(i != docIDs.size()-1)
-                        postingsDocIdsStream.write(docIDs.get(i).toString()+",");
-                    else postingsDocIdsStream.write(docIDs.get(i).toString()+"\n");
-                // frequencies
+                for(int i = 0; i < docIDs.size(); i++) {
+                    if (i != docIDs.size() - 1)
+                        postingsDocIdsStream.write(docIDs.get(i).toString() + ","); // doc ids are separated by ,
+                    else
+                        postingsDocIdsStream.write(docIDs.get(i).toString() + "\n"); // posting lists are separated by \n
+                }
+
+                // frequencies posting list
                 List<Integer> frequencies = lexiconTerm.getPostingListFrequencies();
-                for(int i = 0; i < frequencies.size(); ++i)
-                    if(i != docIDs.size()-1)
-                        postingsFrequenciesStream.write(frequencies.get(i).toString()+",");
-                    else postingsFrequenciesStream.write(frequencies.get(i).toString()+"\n");
-                //lexicon terms
+                for(int i = 0; i < frequencies.size(); ++i) {
+                    if (i != docIDs.size() - 1)
+                        postingsFrequenciesStream.write(frequencies.get(i).toString() + ",");
+                    else postingsFrequenciesStream.write(frequencies.get(i).toString() + "\n");
+                }
+
+                // writing to file the lexicon entry
                 String[] lexiconEntry = lexiconTerm.serialize();
-                for(int i = 0; i < lexiconEntry.length; ++i)
-                    if(i != lexiconEntry.length-1)
-                        lexiconStream.write(lexiconEntry[i]+",");
-                    else lexiconStream.write(lexiconEntry[i]+"\n"); // since we don't have the offset information here, we use \n as delimiter
+                for(int i = 0; i < lexiconEntry.length; ++i) {
+                    if (i != lexiconEntry.length - 1)
+                        lexiconStream.write(lexiconEntry[i] + ",");
+                    else lexiconStream.write(lexiconEntry[i] + "\n");
+                }
             }
+
+            // writing to file the doc table
             for (Map.Entry<Integer, Document> doc : documentTable.entrySet()) {
                 String[] documentTableEntry = doc.getValue().serializeTextual();
                 for(int i = 0; i < documentTableEntry.length; ++i)
                     if(i != documentTableEntry.length-1)
                         documentTableStream.write(documentTableEntry[i]+",");
-                    else documentTableStream.write(documentTableEntry[i]+"\n"); // since we don't have the offset information here, we use \n as delimiter
+                    else documentTableStream.write(documentTableEntry[i]+"\n");
             }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -67,36 +78,43 @@ public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
         System.out.println("Partial files written in " + (end - start) + " ms");
     }
 
+    // function that merges the partial data structures and writes the merged files to disk
     @Override
     public void merge(){
 
-        String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION.toLowerCase();
-        String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION.toLowerCase();
-        String lexiconFile = Constants.MERGED_LEXICON_FILE_PATH + FILE_EXTENSION.toLowerCase();
+        // file paths
+        String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION;
+        String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION;
+        String lexiconFile = Constants.MERGED_LEXICON_FILE_PATH + FILE_EXTENSION;
 
         try (BufferedWriter outputDocIdsStream = new BufferedWriter(new FileWriter(postingsDocIdsFile));
              BufferedWriter outputFrequenciesStream = new BufferedWriter(new FileWriter(postingsFrequenciesFile));
              BufferedWriter outputLexiconStream = new BufferedWriter(new FileWriter(lexiconFile))){
 
+            // number of partial files to read from
             int numberOfBlocks = currentBlock + 1;
             int nextBlock = 0;
 
-            //open all the needed files for each block
+            // opening all the partial files
             ArrayList<BufferedReader> lexiconReader = new ArrayList<>();
             ArrayList<BufferedReader> postingsDocIdsReader = new ArrayList<>();
             ArrayList<BufferedReader> postingsFrequenciesReader = new ArrayList<>();
             while(nextBlock < numberOfBlocks){
-                lexiconReader.add(new BufferedReader(new InputStreamReader(new FileInputStream(Constants.PARTIAL_LEXICON_FILE_PATH + nextBlock + FILE_EXTENSION.toLowerCase()))));
-                postingsDocIdsReader.add(new BufferedReader(new InputStreamReader(new FileInputStream(Constants.PARTIAL_POSTINGS_DOC_IDS_FILE_PATH + nextBlock + FILE_EXTENSION.toLowerCase()))));
-                postingsFrequenciesReader.add(new BufferedReader(new InputStreamReader(new FileInputStream(Constants.PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH + nextBlock + FILE_EXTENSION.toLowerCase()))));
+                lexiconReader.add(new BufferedReader(new InputStreamReader(new FileInputStream(Constants.PARTIAL_LEXICON_FILE_PATH + nextBlock + FILE_EXTENSION))));
+                postingsDocIdsReader.add(new BufferedReader(new InputStreamReader(new FileInputStream(Constants.PARTIAL_POSTINGS_DOC_IDS_FILE_PATH + nextBlock + FILE_EXTENSION))));
+                postingsFrequenciesReader.add(new BufferedReader(new InputStreamReader(new FileInputStream(Constants.PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH + nextBlock + FILE_EXTENSION))));
                 nextBlock++;
             }
 
+            // array containing one serialized term for each block
             String[] nextLexiconEntry = new String[numberOfBlocks];
+            // array of deserialized lexicon terms
             LexiconTermTextualIndexing[] nextTerm = new LexiconTermTextualIndexing[numberOfBlocks];
 
+            // used to keep track of unfinished blocks
             ArrayList<Integer> activeBlocks = new ArrayList<>();
 
+            // deserializing the first entry for each block
             for(int i=0; i < numberOfBlocks; i++){
                 activeBlocks.add(i);
                 //read from file
@@ -107,19 +125,22 @@ public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
 
             while(activeBlocks.size() > 0){
 
+                // getting the indexes of the blocks containing the minimum term in lexicographical order
                 List<Integer> lexiconsToMerge = getLexiconsToMerge(activeBlocks, nextTerm);
 
-                //create a new lexiconTerm object for the min term
+                // creating a new lexiconTerm object for the min term
                 LexiconTermTextualIndexing referenceLexiconTerm = new LexiconTermTextualIndexing(nextTerm[lexiconsToMerge.get(0)].getTerm());
-                //merge everything
+
+                //merging everything
                 for (Integer blockIndex: lexiconsToMerge){
+
                     LexiconTermTextualIndexing nextBlockToMerge = nextTerm[blockIndex];
 
-                    //merge statistics
+                    // merging statistics
                     referenceLexiconTerm.setDocumentFrequency(referenceLexiconTerm.getDocumentFrequency() + nextBlockToMerge.getDocumentFrequency());
                     referenceLexiconTerm.setCollectionFrequency(referenceLexiconTerm.getCollectionFrequency() + nextBlockToMerge.getCollectionFrequency());
 
-                    //get posting list from disk
+                    //getting posting list from disk
                     String postingDocIDs = postingsDocIdsReader.get(blockIndex).readLine();
                     String postingFrequencies = postingsFrequenciesReader.get(blockIndex).readLine();
                     ArrayList<Integer> docIDs = new ArrayList<>();
@@ -130,7 +151,7 @@ public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
                     for(String frequencyString: postingFrequencies.split(","))
                         frequencies.add(Integer.parseInt(frequencyString));
 
-                    //merge postings
+                    // merging postings
                     referenceLexiconTerm.extendPostingList(docIDs, frequencies);
 
                     if(activeBlocks.contains(blockIndex)){
@@ -143,8 +164,11 @@ public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
                         }
                     }
                 }
+
+                // writing the term to the lexicon and the merged posting lists to the inverted index
                 referenceLexiconTerm.writeToDisk(outputDocIdsStream, outputFrequenciesStream, outputLexiconStream);
             }
+            // merging the doc table
             mergePartialDocumentTables();
             try (BufferedWriter bwCollectionStatistics = new BufferedWriter(new FileWriter(Constants.COLLECTION_STATISTICS_FILE_PATH + Constants.TXT_FORMAT))) {
                 bwCollectionStatistics.write(collectionStatistics.serializeToString());

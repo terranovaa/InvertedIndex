@@ -4,9 +4,10 @@ import java.util.ArrayList;
 
 public class LexiconTermIndexing extends LexiconTerm {
 
-    //posting_list of the term used during Indexing
+    // posting list of the term used during Indexing
     protected ArrayList<Integer> postingListDocIds = new ArrayList<>();
     protected ArrayList<Integer> postingListFrequencies = new ArrayList<>();
+    // used for performance
     private int lastDocIdInserted;
 
 
@@ -38,13 +39,14 @@ public class LexiconTermIndexing extends LexiconTerm {
 
     public void addToPostingList(int docID) {
         if(lastDocIdInserted != docID){
-            //new document, thus new posting
+            // new document, thus new posting
             lastDocIdInserted = docID;
             postingListDocIds.add(docID);
             postingListFrequencies.add(1);
+            documentFrequency++;
         }
         else{
-            //additional occurrence for the previous document
+            // additional occurrence for the previous document
             Integer frequency = postingListFrequencies.get(postingListFrequencies.size() - 1);
             postingListFrequencies.set(postingListFrequencies.size() - 1, frequency + 1);
         }

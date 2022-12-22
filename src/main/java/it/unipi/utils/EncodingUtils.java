@@ -10,6 +10,7 @@ import static java.lang.Math.log;
 
 public class EncodingUtils {
 
+    // VariableByte encoding
     private static byte[] encodeNumber(int n) {
         if (n == 0) {
             return new byte[]{(byte) 128};
@@ -25,6 +26,7 @@ public class EncodingUtils {
         return bytes;
     }
 
+    // VariableByte encoding
     public static byte[] encode(List<Integer> numbers) {
         byte[] byteStream;
         try {
@@ -43,6 +45,7 @@ public class EncodingUtils {
         return byteStream;
     }
 
+    // useful if we don't want to decode the whole posting lists for creating skip pointers
     public static int getEncodingLength(List<Integer> numbers){
         int bytesLength = 0;
         for (Integer number: numbers) {
@@ -55,6 +58,7 @@ public class EncodingUtils {
         return bytesLength;
     }
 
+    // VariableByte decoding
     public static ArrayList<Integer> decode(byte[] byteStream) {
         ArrayList<Integer> numbers = new ArrayList<>();
         int n = 0;
@@ -71,6 +75,7 @@ public class EncodingUtils {
         return numbers;
     }
 
+    // VariableByte decoding
     public static ArrayList<Integer> decode(List<Byte> byteStream) {
         return decode(Bytes.toArray(byteStream));
     }
@@ -80,22 +85,27 @@ public class EncodingUtils {
         return ByteBuffer.allocate(4).putInt(value).array();
     }
 
+    //given a double return the byte representation
     public static byte[] doubleToByteArray(double value) {
         return ByteBuffer.allocate(8).putDouble(value).array();
     }
 
+    //given a long return the byte representation
     public static byte[] longToByteArray(long value) {
         return ByteBuffer.allocate(8).putLong(value).array();
     }
 
+    // given the byte representation return an integer
     public static int byteArrayToInt(byte[] value, int startIndex) {
         return ByteBuffer.wrap(value).getInt(startIndex);
     }
 
+    // given the byte representation return a long
     public static long byteArrayToLong(byte[] value, int startIndex) {
         return ByteBuffer.wrap(value).getLong(startIndex);
     }
 
+    // given the byte representation return a double
     public static double byteArrayToDouble(byte[] value, int startIndex) {
         return ByteBuffer.wrap(value).getDouble(startIndex);
     }

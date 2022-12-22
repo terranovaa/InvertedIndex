@@ -13,10 +13,11 @@ import java.util.Map;
 
 public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
-    //encoded posting_list used for performance during merge
+    // encoded posting list used for performance during merge
     private byte[] encodedDocIDs;
     private byte[] encodedFrequencies;
-    //used to keep file pointers during merge
+
+    // used to keep file pointers during merge
     static private int docIDsFileOffset = 0;
     static private int frequenciesFileOffset = 0;
 
@@ -37,6 +38,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         deserializeBinary(buffer);
     }
 
+    // concatenates the new postings with the existing postings
     public void mergeEncodedPostings(byte[] encodedDocIDs, byte[] encodedFrequencies){
         //get current encoded partial posting list and extend with additional posting
         if(this.encodedDocIDs == null){
@@ -59,11 +61,14 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         }
     }
 
+
     public void computeStatistics(MappedByteBuffer docTableBuffer, CollectionStatistics collectionStatistics){
-        //decode posting list
+
+        // decoding the posting lists
         this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
         this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
-        //compute termUpperBound and collection frequency
+
+        // computing the term upper bound and collection frequency
         this.termUpperBound = -1;
         int i = 0;
         int collectionFrequency = 0;
@@ -78,25 +83,19 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
             i++;
         }
 
-        //compute cf
         this.setCollectionFrequency(collectionFrequency);
     }
 
+    // used for writing to disk in binary format during merge
     public void writeToDisk(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream) throws IOException {
+
         int numSkipBlocks;
         int blockSize;
 
-        //(doc id,offset) list for skip pointers
+        // (doc id,offsets) list for skip pointers
         LinkedHashMap<Integer, SkipPointerEntry> skipPointers = new LinkedHashMap<>();
 
-        //decode posting lists
-        this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
-        this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
-
-        //set document frequency
-        this.documentFrequency = this.postingListDocIds.size();
-
-        //if the posting list is long, create skip pointers to be used for nextGEQ implementation
+        // if the posting list is long, create skip pointers to be used for nextGEQ implementation
         if (this.documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
 
             //create sqrt(df) blocks of sqrt(df) size (rounded to the highest value when needed)
@@ -106,9 +105,9 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
             long docIdOffset = 0;
             long frequencyOffset = 0;
 
-            //Avoid inserting details about the last block, since they can be inferred from the previous ones
+            // avoid inserting details about the first block
             for (int i = 0; i < numSkipBlocks - 1; i++) {
-                // get first docID after the block
+                // first docId of the block
                 int docId = postingListDocIds.get(blockSize * (i + 1));
                 // in subList from is inclusive, to is exclusive
                 docIdOffset += EncodingUtils.getEncodingLength(this.getPostingListDocIds().subList((i * blockSize) , ((i + 1) * blockSize)));
@@ -117,36 +116,31 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
             }
         }
 
-        //set inverted file offsets for this term
+        // set inverted file offsets for this term
         this.setDocIdsOffset(docIDsFileOffset);
         this.setFrequenciesOffset(frequenciesFileOffset);
 
+        // writing the skip block to file before the doc ids
         if (skipPointers.size() > 0) {
-            //docId (4 bytes) + offset (8 bytes) for each skip pointer in docId file
-            byte[] skipPointersBytesDocIds = new byte[skipPointers.size() * 12];
-            //offset (8 bytes) for each skip pointer in frequency file
-            byte[] skipPointersBytesFrequency = new byte[skipPointers.size() * 8];
+            byte[] skipPointersBytes = new byte[skipPointers.size() * Constants.SKIP_BLOCK_DIMENSION];
             int i = 0;
             for (Map.Entry<Integer, SkipPointerEntry> skipPointer: skipPointers.entrySet()) {
-                System.arraycopy(EncodingUtils.intToByteArray(skipPointer.getKey()), 0, skipPointersBytesDocIds, i * 12, 4);
-                System.arraycopy(EncodingUtils.longToByteArray(skipPointer.getValue().docIdOffset()), 0, skipPointersBytesDocIds, (i * 12) + 4, 8);
-                System.arraycopy(EncodingUtils.longToByteArray(skipPointer.getValue().freqOffset()), 0, skipPointersBytesFrequency, i * 8, 8);
+                System.arraycopy(EncodingUtils.intToByteArray(skipPointer.getKey()), 0, skipPointersBytes, i * Constants.SKIP_BLOCK_DIMENSION, 4);
+                System.arraycopy(EncodingUtils.longToByteArray(skipPointer.getValue().docIdOffset()), 0, skipPointersBytes, (i * Constants.SKIP_BLOCK_DIMENSION) + 4, 8);
+                System.arraycopy(EncodingUtils.longToByteArray(skipPointer.getValue().freqOffset()), 0, skipPointersBytes, (i * Constants.SKIP_BLOCK_DIMENSION) + 12, 8);
                 i++;
             }
-            docIDsFileOffset += skipPointersBytesDocIds.length;
-            docIdsSize += skipPointersBytesDocIds.length;
-            frequenciesFileOffset += skipPointersBytesFrequency.length;
-            frequenciesSize += skipPointersBytesFrequency.length;
-            docIDStream.write(skipPointersBytesDocIds);
-            frequenciesStream.write(skipPointersBytesFrequency);
+            docIDsFileOffset += skipPointersBytes.length;
+            docIdsSize += skipPointersBytes.length;
+            docIDStream.write(skipPointersBytes);
         }
 
-        //update general file docId offset and docid size
+        // updating general file docId offset and doc id size
         docIDsFileOffset += this.encodedDocIDs.length;
         docIdsSize += this.encodedDocIDs.length;
         docIDStream.write(this.encodedDocIDs);
 
-        //update general file frequency offset and frequency size
+        // updating general file frequency offset and frequency size
         frequenciesFileOffset += this.encodedFrequencies.length;
         frequenciesSize += this.encodedFrequencies.length;
         frequenciesStream.write(this.encodedFrequencies);
