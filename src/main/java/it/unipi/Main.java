@@ -12,7 +12,6 @@ import java.io.IOException;
 public class Main {
 
     public static void main(String[] args) throws IOException {
-        args = new String[]{"query"};
         if (args.length == 0){
             // default case: no args => indexing, DAT format
             index(Constants.DAT_FORMAT);
@@ -22,7 +21,7 @@ public class Main {
                     // default case: index with no specifications => DAT format
                     System.out.println("Using default extension...");
                     index(Constants.DAT_FORMAT);
-                } else if(args.length >= 2) {
+                } else {
                     // default case: index with file specification
                     if (!args[1].equalsIgnoreCase(Constants.DAT_FORMAT) && !args[1].equalsIgnoreCase(Constants.TXT_FORMAT))
                         throw new RuntimeException("File format not supported..");

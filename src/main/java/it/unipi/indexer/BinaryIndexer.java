@@ -219,7 +219,7 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
                     dimSkipPointers = 20 * (numSkipBlocks-1);
                     //read and throw away bytes corresponding to skip pointers
                     byte[] skip = new byte[dimSkipPointers];
-                    inDocIdStream.read(skip);
+                    inDocIdStream.read(skip); // TODO check if skip works
                 }
 
                 // getting posting lists
