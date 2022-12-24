@@ -20,6 +20,7 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
     // memory mapped buffer of the posting list portion relative to the term
     private final MappedByteBuffer freqBuffer;
     private int currentDocID;
+    private int previousDocID;
     private int currentFreq;
     // useful if there are skip blocks
     private final int docIdsStartingOffset;
@@ -32,23 +33,22 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
     // the constructor corresponds to openList() (otherwise FileChannels could not be final)
     @SuppressWarnings("resource")
     public PostingListInterface(LexiconTerm lexiconTerm) throws IOException {
-
         term = lexiconTerm.getTerm();
         termUpperBound = lexiconTerm.termUpperBound;
         int docIdsSize = lexiconTerm.getDocIdsSize();
         int frequenciesSize = lexiconTerm.getFrequenciesSize();
-
-        docIdsChannel = new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + Constants.DAT_FORMAT).getChannel();
+        docIdsChannel = new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH +"NEW"+ Constants.DAT_FORMAT).getChannel();
         docIdsBuffer = docIdsChannel.map(FileChannel.MapMode.READ_ONLY, lexiconTerm.docIdsOffset, docIdsSize).load();
         freqChannel = new FileInputStream(Constants.POSTINGS_FREQUENCIES_FILE_PATH + Constants.DAT_FORMAT).getChannel();
         freqBuffer = freqChannel.map(FileChannel.MapMode.READ_ONLY, lexiconTerm.frequenciesOffset, frequenciesSize).load();
-
+        previousDocID = -1;
         skipPointers = new LinkedHashMap<>();
 
         int documentFrequency = lexiconTerm.getDocumentFrequency();
 
         // checking if the term has skip pointers
         if (documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
+            System.out.println("Has skipping blocks!");
             // number of skip blocks if root of document freq
             int blockSize = (int) Math.ceil(Math.sqrt(documentFrequency));
             int numSkipBlocks = (int) Math.ceil((double)documentFrequency / (double)blockSize);
@@ -110,6 +110,27 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
         }
     }
 
+    // returns false is we are at the end of the posting list, otherwise true
+    // moves forward by one doc in the posting lists
+    public boolean next() {
+
+        if (!docIdsBuffer.hasRemaining() || !freqBuffer.hasRemaining()) return false;
+
+        List<Byte> encodedDocId = getNextInt(docIdsBuffer);
+        currentDocID = EncodingUtils.decode(encodedDocId).get(0);
+
+        // gaps
+        if(previousDocID != -1)
+            currentDocID += previousDocID;
+
+        previousDocID = currentDocID;
+
+        List<Byte> encodedFreq = getNextInt(freqBuffer);
+        currentFreq = EncodingUtils.decode(encodedFreq).get(0);
+
+        return true;
+    }
+
     // decodes a VariableByte encoded int from the posting list
     private List<Byte> getNextInt(MappedByteBuffer list) {
         ArrayList<Byte> encodedInt = new ArrayList<>();
@@ -123,24 +144,8 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
     }
 
     // returns false is we are at the end of the posting list, otherwise true
-    // moves forward by one doc in the posting lists
-    public boolean next() {
-
-        if (!docIdsBuffer.hasRemaining() || !freqBuffer.hasRemaining()) return false;
-
-        List<Byte> encodedDocId = getNextInt(docIdsBuffer);
-        currentDocID = EncodingUtils.decode(encodedDocId).get(0);
-
-        List<Byte> encodedFreq = getNextInt(freqBuffer);
-        currentFreq = EncodingUtils.decode(encodedFreq).get(0);
-
-        return true;
-    }
-
-    // returns false is we are at the end of the posting list, otherwise true
     // moves to a doc_id greater or equal than docId (if it exists)
     public boolean nextGEQ(int docId) {
-
         if (!docIdsBuffer.hasRemaining() || !freqBuffer.hasRemaining()) return false;
 
         // current docId is already GEQ than docId, no need to do anything
