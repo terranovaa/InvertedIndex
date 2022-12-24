@@ -146,6 +146,8 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
 
                     LexiconTermBinaryIndexing nextBlockToMerge = nextTerm[blockIndex];
 
+                    referenceLexiconTerm.setDocumentFrequency(referenceLexiconTerm.getDocumentFrequency() + nextBlockToMerge.getDocumentFrequency());
+
                     // reading and merging the corresponding posting lists from disk
                     byte[] postingDocIDs = postingsDocIdsStreams.get(blockIndex).readNBytes(nextBlockToMerge.getDocIdsSize());
                     byte[] postingFrequencies = postingsFrequenciesStreams.get(blockIndex).readNBytes(nextBlockToMerge.getFrequenciesSize());

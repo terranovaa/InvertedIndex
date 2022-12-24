@@ -111,6 +111,8 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
         // if the posting list is long, create skip pointers to be used for nextGEQ implementation
         if (this.documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
+            this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
+            this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
 
             //create sqrt(df) blocks of sqrt(df) size (rounded to the highest value when needed)
             blockSize = (int) Math.ceil(Math.sqrt(this.documentFrequency));

@@ -48,7 +48,6 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
 
         // checking if the term has skip pointers
         if (documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
-            System.out.println("Has skipping blocks!");
             // number of skip blocks if root of document freq
             int blockSize = (int) Math.ceil(Math.sqrt(documentFrequency));
             int numSkipBlocks = (int) Math.ceil((double)documentFrequency / (double)blockSize);
@@ -155,7 +154,6 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
 
         int skipDocId = 0;
         int skipDocIdOffset = 0;
-        int skipFreqOffset = 0;
 
         boolean postingListHasNext = true;
 
@@ -164,14 +162,12 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
             if (skipPointer.getKey() <= docId) {
                 skipDocId = skipPointer.getKey();
                 skipDocIdOffset = (int) skipPointer.getValue().docIdOffset();
-                skipFreqOffset = (int) skipPointer.getValue().freqOffset();
             } else break; // we reached a skipDocId greater than docId
         }
 
         // we move the buffers to the skip offsets
         if (skipDocId > startingDocId) {
             docIdsBuffer.position(docIdsStartingOffset + skipDocIdOffset);
-            freqBuffer.position(skipFreqOffset);
             next();
         }
 
