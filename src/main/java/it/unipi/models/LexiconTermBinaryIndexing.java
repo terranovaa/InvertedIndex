@@ -218,8 +218,6 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         docIDsFileOffset += this.encodedDocIDs.length;
         docIdsSize += this.encodedDocIDs.length;
         docIDStream.write(this.encodedDocIDs);
-        // updating general file frequency offset and frequency size
-        frequenciesFileOffset += this.encodedFrequencies.length;
-        frequenciesSize += this.encodedFrequencies.length;
+
     }
 }

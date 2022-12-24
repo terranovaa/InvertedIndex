@@ -169,6 +169,7 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
         if (skipDocId > startingDocId) {
             docIdsBuffer.position(docIdsStartingOffset + skipDocIdOffset);
             next();
+            previousDocID = skipDocId;
         }
 
         // we use next() until we reach a doc GEQ than docId
