@@ -56,4 +56,14 @@ public class DiskDataStructuresSearch {
         }
         return null;
     }
+
+    public static LexiconTerm lexiconDiskSearch(int termIndex, int numberOfTerms, MappedByteBuffer lexiconBuffer) {
+
+        LexiconTerm currentEntry = new LexiconTerm();
+        lexiconBuffer.position(termIndex * Constants.LEXICON_ENTRY_SIZE);
+        byte[] buffer = new byte[Constants.LEXICON_ENTRY_SIZE];
+        lexiconBuffer.get(buffer, 0, Constants.LEXICON_ENTRY_SIZE);
+        currentEntry.deserializeBinary(buffer);
+        return currentEntry;
+    }
 }

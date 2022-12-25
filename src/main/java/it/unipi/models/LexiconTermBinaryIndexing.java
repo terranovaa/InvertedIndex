@@ -4,7 +4,6 @@ import it.unipi.utils.Constants;
 import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.EncodingUtils;
 import it.unipi.utils.ScoringFunctions;
-import org.checkerframework.checker.units.qual.A;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -103,6 +102,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
     // used for writing to disk in binary format during merge
     public void writeToDisk(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream) throws IOException {
 
+        /*
         int numSkipBlocks;
         int blockSize;
 
@@ -132,10 +132,13 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
             }
         }
 
+         */
+
         // set inverted file offsets for this term
         this.setDocIdsOffset(docIDsFileOffset);
         this.setFrequenciesOffset(frequenciesFileOffset);
 
+        /*
         // writing the skip block to file before the doc ids
         if (skipPointers.size() > 0) {
             byte[] skipPointersBytes = new byte[skipPointers.size() * Constants.SKIP_BLOCK_DIMENSION];
@@ -150,6 +153,8 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
             docIdsSize += skipPointersBytes.length;
             docIDStream.write(skipPointersBytes);
         }
+
+         */
 
         // updating general file docId offset and doc id size
         docIDsFileOffset += this.encodedDocIDs.length;
@@ -166,7 +171,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
     }
 
     // used for writing to disk in binary format during merge
-    public void updateSkippingBlocks(OutputStream docIDStream, ArrayList<Integer> oldPostingListDocIds) throws IOException {
+    public void writeRefinedPostingListToDisk(OutputStream docIDStream, ArrayList<Integer> oldPostingListDocIds) throws IOException {
 
         int numSkipBlocks;
         int blockSize;
@@ -197,7 +202,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
         // set inverted file offsets for this term
         this.setDocIdsOffset(docIDsFileOffset);
-        this.setFrequenciesOffset(frequenciesFileOffset);
+        //this.setFrequenciesOffset(frequenciesFileOffset);
 
         // writing the skip block to file before the doc ids
         if (skipPointers.size() > 0) {
@@ -218,6 +223,5 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         docIDsFileOffset += this.encodedDocIDs.length;
         docIdsSize += this.encodedDocIDs.length;
         docIDStream.write(this.encodedDocIDs);
-
     }
 }

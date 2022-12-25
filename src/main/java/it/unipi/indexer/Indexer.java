@@ -107,6 +107,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
 
                 // saving the document in the doc
                 documentTable.put(currentDocId, new Document(currentDocId, docNo, docLen));
+
                 currentDocId++;
             }
 

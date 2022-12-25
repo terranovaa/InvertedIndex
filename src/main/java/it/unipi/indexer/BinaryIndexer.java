@@ -6,11 +6,9 @@ import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.EncodingUtils;
 
 import java.io.*;
-import java.lang.reflect.Array;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
-import java.sql.Time;
 import java.util.*;
 
 import static it.unipi.utils.EncodingUtils.decode;
@@ -214,6 +212,7 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
                 LexiconTermBinaryIndexing entry = new LexiconTermBinaryIndexing();
                 entry.deserializeBinary(buffer);
 
+                /*
                 //jump over skip pointers if any
                 int dimSkipPointers = 0;
                 if (entry.getDocumentFrequency() > Constants.SKIP_POINTERS_THRESHOLD) {
@@ -225,8 +224,10 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
                     inDocIdStream.read(skip); // TODO check if skip works
                 }
 
+                 */
+
                 // getting posting lists
-                byte[] postingDocIDs = inDocIdStream.readNBytes(entry.getDocIdsSize() - dimSkipPointers);
+                byte[] postingDocIDs = inDocIdStream.readNBytes(entry.getDocIdsSize());
                 byte[] postingFrequencies = inFrequencyStream.readNBytes(entry.getFrequenciesSize());
 
                 // gaps implementation
@@ -234,9 +235,8 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
                 int newCurrentDocID;
                 ArrayList<Integer> postingListNewDocIds = new ArrayList<>();
                 ArrayList<Integer> postingListOldDocIds = EncodingUtils.decode(postingDocIDs);
-                int[] arr = postingListOldDocIds.stream().mapToInt(i -> i).toArray();
                 byte[] newEncoding;
-                for(int completeDocID: arr){
+                for(int completeDocID: postingListOldDocIds){
                     newCurrentDocID = completeDocID;
                     if(previousDocID != -1)  // not the head of the list
                         newCurrentDocID -= previousDocID;
@@ -248,7 +248,7 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
 
                 // old docids used only for defining the key of the skip pointer
                 entry.setEncodedPostings(newEncoding, postingFrequencies);
-                entry.updateSkippingBlocks(outNewDocIdStream, postingListOldDocIds);
+                entry.writeRefinedPostingListToDisk(outNewDocIdStream, postingListOldDocIds);
 
                 // computing term upper bound and collection frequency
                 entry.computeStatistics(docTableBuffer, cs);

@@ -94,7 +94,7 @@ public class QueryProcessor {
         }
         if(success) {
             for(DocumentScore ds : docsPriorityQueue){
-                System.out.println(ds.docNo());
+                System.out.println(ds.docNo() + " " + ds.score());
             }
         }
 
@@ -191,7 +191,7 @@ public class QueryProcessor {
                 }
             }
             lexiconTerms.put(token, lexiconTerm);
-            PostingListInterface pl = new PostingListInterface(lexiconTerm);
+            PostingListInterface pl = new PostingListInterface(lexiconTerm, false);
             postingLists.add(pl);
         }
 

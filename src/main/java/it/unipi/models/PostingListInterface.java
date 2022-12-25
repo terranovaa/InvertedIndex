@@ -32,12 +32,16 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
 
     // the constructor corresponds to openList() (otherwise FileChannels could not be final)
     @SuppressWarnings("resource")
-    public PostingListInterface(LexiconTerm lexiconTerm) throws IOException {
+    public PostingListInterface(LexiconTerm lexiconTerm, boolean old) throws IOException {
         term = lexiconTerm.getTerm();
         termUpperBound = lexiconTerm.termUpperBound;
         int docIdsSize = lexiconTerm.getDocIdsSize();
         int frequenciesSize = lexiconTerm.getFrequenciesSize();
-        docIdsChannel = new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH +"NEW"+ Constants.DAT_FORMAT).getChannel();
+        if (old) {
+            docIdsChannel = new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + Constants.DAT_FORMAT).getChannel();
+        } else {
+            docIdsChannel = new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + "NEW" + Constants.DAT_FORMAT).getChannel();
+        }
         docIdsBuffer = docIdsChannel.map(FileChannel.MapMode.READ_ONLY, lexiconTerm.docIdsOffset, docIdsSize).load();
         freqChannel = new FileInputStream(Constants.POSTINGS_FREQUENCIES_FILE_PATH + Constants.DAT_FORMAT).getChannel();
         freqBuffer = freqChannel.map(FileChannel.MapMode.READ_ONLY, lexiconTerm.frequenciesOffset, frequenciesSize).load();
@@ -130,6 +134,53 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
         return true;
     }
 
+    public boolean nextOld() {
+
+        if (!docIdsBuffer.hasRemaining() || !freqBuffer.hasRemaining()) return false;
+
+        List<Byte> encodedDocId = getNextInt(docIdsBuffer);
+        currentDocID = EncodingUtils.decode(encodedDocId).get(0);
+
+        List<Byte> encodedFreq = getNextInt(freqBuffer);
+        currentFreq = EncodingUtils.decode(encodedFreq).get(0);
+
+        return true;
+    }
+
+    public boolean nextGEQOld(int docId) {
+
+        if (currentDocID >= docId) return true;
+
+        int startingDocId = currentDocID;
+
+        int skipDocId = 0;
+        int skipDocIdOffset = 0;
+        int skipFreqOffset = 0;
+
+        boolean postingListHasNext = true;
+
+        for (Map.Entry<Integer, SkipPointerEntry> skipPointer : skipPointers.entrySet()) {
+            if (skipPointer.getKey() < startingDocId) continue;
+            if (skipPointer.getKey() <= docId) {
+                skipDocId = skipPointer.getKey();
+                skipDocIdOffset = (int) skipPointer.getValue().docIdOffset();
+                skipFreqOffset = (int) skipPointer.getValue().freqOffset();
+            } else break;
+        }
+
+        if (skipDocId > startingDocId) {
+            docIdsBuffer.position(docIdsStartingOffset + skipDocIdOffset);
+            freqBuffer.position(skipFreqOffset);
+            next();
+        }
+
+        while (currentDocID < docId && postingListHasNext) {
+            postingListHasNext = next();
+        }
+
+        return postingListHasNext;
+    }
+
     // decodes a VariableByte encoded int from the posting list
     private List<Byte> getNextInt(MappedByteBuffer list) {
         ArrayList<Byte> encodedInt = new ArrayList<>();
@@ -145,6 +196,7 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
     // returns false is we are at the end of the posting list, otherwise true
     // moves to a doc_id greater or equal than docId (if it exists)
     public boolean nextGEQ(int docId) {
+
         if (!docIdsBuffer.hasRemaining() || !freqBuffer.hasRemaining()) return false;
 
         // current docId is already GEQ than docId, no need to do anything
@@ -154,6 +206,7 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
 
         int skipDocId = 0;
         int skipDocIdOffset = 0;
+        int skipFreqOffset = 0;
 
         boolean postingListHasNext = true;
 
@@ -162,13 +215,18 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
             if (skipPointer.getKey() <= docId) {
                 skipDocId = skipPointer.getKey();
                 skipDocIdOffset = (int) skipPointer.getValue().docIdOffset();
+                skipFreqOffset = (int) skipPointer.getValue().freqOffset();
             } else break; // we reached a skipDocId greater than docId
         }
 
         // we move the buffers to the skip offsets
         if (skipDocId > startingDocId) {
             docIdsBuffer.position(docIdsStartingOffset + skipDocIdOffset);
-            next();
+            freqBuffer.position(skipFreqOffset);
+            //next();
+            getNextInt(docIdsBuffer);
+            currentFreq = getNextInt(freqBuffer).get(0);
+            currentDocID = skipDocId;
             previousDocID = skipDocId;
         }
 
