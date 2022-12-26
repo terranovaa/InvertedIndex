@@ -101,7 +101,6 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
                     System.out.println("Analyzing document n. " + currentDocId);
                 }
 
-
                 // if the document contains only stopwords, we move on
                 if (docLen == 0) continue;
 

@@ -8,10 +8,11 @@ import it.unipi.utils.EncodingUtils;
 import java.io.*;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
-
-import static it.unipi.utils.EncodingUtils.decode;
 
 public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
     public BinaryIndexer() {
@@ -192,7 +193,7 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
 
         try (OutputStream outLexiconStream = new BufferedOutputStream(new FileOutputStream(Constants.LEXICON_FILE_PATH + FILE_EXTENSION));
             InputStream inLexiconStream = new BufferedInputStream(new FileInputStream(Constants.MERGED_LEXICON_FILE_PATH + FILE_EXTENSION));
-             OutputStream outNewDocIdStream = new BufferedOutputStream(new FileOutputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + "NEW"+ FILE_EXTENSION));
+             OutputStream outNewDocIdStream = new BufferedOutputStream(new FileOutputStream(Constants.POSTINGS_DOC_IDS_GAPS_FILE_PATH + FILE_EXTENSION));
              InputStream inDocIdStream = new BufferedInputStream(new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION));
             InputStream inFrequencyStream = new BufferedInputStream(new FileInputStream(Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION))
         )
@@ -211,20 +212,6 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
 
                 LexiconTermBinaryIndexing entry = new LexiconTermBinaryIndexing();
                 entry.deserializeBinary(buffer);
-
-                /*
-                //jump over skip pointers if any
-                int dimSkipPointers = 0;
-                if (entry.getDocumentFrequency() > Constants.SKIP_POINTERS_THRESHOLD) {
-                    int blockSize = (int) Math.ceil(Math.sqrt(entry.getDocumentFrequency()));
-                    int numSkipBlocks = (int) Math.ceil((double) entry.getDocumentFrequency() / (double) blockSize);
-                    dimSkipPointers = 20 * (numSkipBlocks - 1);
-                    //read and throw away bytes corresponding to skip pointers
-                    byte[] skip = new byte[dimSkipPointers];
-                    inDocIdStream.read(skip); // TODO check if skip works
-                }
-
-                 */
 
                 // getting posting lists
                 byte[] postingDocIDs = inDocIdStream.readNBytes(entry.getDocIdsSize());
@@ -246,7 +233,7 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
 
                 newEncoding = EncodingUtils.encode(postingListNewDocIds);
 
-                // old docids used only for defining the key of the skip pointer
+                // old doc ids used only for defining the key of the skip pointer
                 entry.setEncodedPostings(newEncoding, postingFrequencies);
                 entry.writeRefinedPostingListToDisk(outNewDocIdStream, postingListOldDocIds);
 
@@ -260,52 +247,17 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
 
         } catch (IOException ee) {
             ee.printStackTrace();
-        } //catch (InterruptedException e) {
-        // throw new RuntimeException(e);
-        //}
+        }
 
-        /*
+        Path source = Paths.get(Constants.POSTINGS_DOC_IDS_GAPS_FILE_PATH + FILE_EXTENSION);
 
-        // TEST
-        try (InputStream inLexiconStream = new BufferedInputStream(new FileInputStream(Constants.LEXICON_FILE_PATH + FILE_EXTENSION));
-             InputStream inNewDocIdStream = new BufferedInputStream(new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + "NEW"+ FILE_EXTENSION));
-             InputStream inFrequencyStream = new BufferedInputStream(new FileInputStream(Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION))
-        )
-        {
-            byte[] buffer = new byte[Constants.LEXICON_ENTRY_SIZE];
-            int bytesRead = inLexiconStream.read(buffer);
-            LexiconTermBinaryIndexing.docIDsFileOffset = 0;
-            LexiconTermBinaryIndexing.frequenciesFileOffset = 0;
-            // for each term
-            while(bytesRead == Constants.LEXICON_ENTRY_SIZE) {
+        try{
+            // rename a file in the same directory
+            Files.move(source, source.resolveSibling("postings_doc_ids.dat"), StandardCopyOption.REPLACE_EXISTING);
 
-                LexiconTermBinaryIndexing entry = new LexiconTermBinaryIndexing();
-                entry.deserializeBinary(buffer);
-                //jump over skip pointers if any
-                int dimSkipPointers = 0;
-                if (entry.getDocumentFrequency() > Constants.SKIP_POINTERS_THRESHOLD) {
-                    int blockSize = (int) Math.ceil(Math.sqrt(entry.getDocumentFrequency()));
-                    int numSkipBlocks = (int) Math.ceil((double) entry.getDocumentFrequency() / (double) blockSize);
-                    dimSkipPointers = 20 * (numSkipBlocks - 1);
-                    //read and throw away bytes corresponding to skip pointers
-                    byte[] skip = new byte[dimSkipPointers];
-                    inNewDocIdStream.read(skip); // TODO check if skip works
-                }
-
-                // getting posting lists
-                byte[] postingDocIDs = inNewDocIdStream.readNBytes(entry.getDocIdsSize() - dimSkipPointers);
-                byte[] postingFrequencies = inFrequencyStream.readNBytes(entry.getFrequenciesSize());
-
-                ArrayList<Integer> postingListOldDocIds = EncodingUtils.decode(postingDocIDs);
-                /*for(int completeDocID: postingListOldDocIds){
-                    if(completeDocID >= 1000000)
-                        System.out.println(completeDocID);
-                }
-                bytesRead = inLexiconStream.read(buffer);
-            }
-        } catch (IOException ee) {
-            ee.printStackTrace();
-        }*/
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 }

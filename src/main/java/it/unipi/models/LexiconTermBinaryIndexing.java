@@ -102,59 +102,9 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
     // used for writing to disk in binary format during merge
     public void writeToDisk(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream) throws IOException {
 
-        /*
-        int numSkipBlocks;
-        int blockSize;
-
-        // (doc id,offsets) list for skip pointers
-        LinkedHashMap<Integer, SkipPointerEntry> skipPointers = new LinkedHashMap<>();
-
-        // if the posting list is long, create skip pointers to be used for nextGEQ implementation
-        if (this.documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
-            this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
-            this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
-
-            //create sqrt(df) blocks of sqrt(df) size (rounded to the highest value when needed)
-            blockSize = (int) Math.ceil(Math.sqrt(this.documentFrequency));
-            numSkipBlocks = (int) Math.ceil((double)this.documentFrequency / (double)blockSize);
-
-            long docIdOffset = 0;
-            long frequencyOffset = 0;
-
-            // avoid inserting details about the first block
-            for (int i = 0; i < numSkipBlocks - 1; i++) {
-                // first docId of the block
-                int docId = postingListDocIds.get(blockSize * (i + 1));
-                // in subList from is inclusive, to is exclusive
-                docIdOffset += EncodingUtils.getEncodingLength(this.getPostingListDocIds().subList((i * blockSize) , ((i + 1) * blockSize)));
-                frequencyOffset += EncodingUtils.getEncodingLength(this.getPostingListFrequencies().subList((i * blockSize), ((i + 1) * blockSize)));
-                skipPointers.put(docId, new SkipPointerEntry(docIdOffset, frequencyOffset));
-            }
-        }
-
-         */
-
         // set inverted file offsets for this term
         this.setDocIdsOffset(docIDsFileOffset);
         this.setFrequenciesOffset(frequenciesFileOffset);
-
-        /*
-        // writing the skip block to file before the doc ids
-        if (skipPointers.size() > 0) {
-            byte[] skipPointersBytes = new byte[skipPointers.size() * Constants.SKIP_BLOCK_DIMENSION];
-            int i = 0;
-            for (Map.Entry<Integer, SkipPointerEntry> skipPointer: skipPointers.entrySet()) {
-                System.arraycopy(EncodingUtils.intToByteArray(skipPointer.getKey()), 0, skipPointersBytes, i * Constants.SKIP_BLOCK_DIMENSION, 4);
-                System.arraycopy(EncodingUtils.longToByteArray(skipPointer.getValue().docIdOffset()), 0, skipPointersBytes, (i * Constants.SKIP_BLOCK_DIMENSION) + 4, 8);
-                System.arraycopy(EncodingUtils.longToByteArray(skipPointer.getValue().freqOffset()), 0, skipPointersBytes, (i * Constants.SKIP_BLOCK_DIMENSION) + 12, 8);
-                i++;
-            }
-            docIDsFileOffset += skipPointersBytes.length;
-            docIdsSize += skipPointersBytes.length;
-            docIDStream.write(skipPointersBytes);
-        }
-
-         */
 
         // updating general file docId offset and doc id size
         docIDsFileOffset += this.encodedDocIDs.length;

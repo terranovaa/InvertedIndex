@@ -9,6 +9,7 @@ public final class Constants {
 
     public static final String PARTIAL_POSTINGS_DOC_IDS_FILE_PATH = RESOURCES_PATH + INVERTED_INDEX_PATH + "postings_doc_ids";
     public static final String POSTINGS_DOC_IDS_FILE_PATH = RESOURCES_PATH + "postings_doc_ids";
+    public static final String POSTINGS_DOC_IDS_GAPS_FILE_PATH = POSTINGS_DOC_IDS_FILE_PATH + "_gaps";
     public static final String PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH = RESOURCES_PATH + INVERTED_INDEX_PATH + "postings_frequencies";
     public static final String POSTINGS_FREQUENCIES_FILE_PATH = RESOURCES_PATH + "postings_frequencies";
 

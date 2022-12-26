@@ -12,7 +12,6 @@ import java.io.IOException;
 public class Main {
 
     public static void main(String[] args) throws IOException {
-        args = new String[]{"query"};
         if (args.length == 0){
             // default case: no args => indexing, DAT format
             index(Constants.DAT_FORMAT);

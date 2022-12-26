@@ -191,7 +191,7 @@ public class QueryProcessor {
                 }
             }
             lexiconTerms.put(token, lexiconTerm);
-            PostingListInterface pl = new PostingListInterface(lexiconTerm, false);
+            PostingListInterface pl = new PostingListInterface(lexiconTerm);
             postingLists.add(pl);
         }
 
