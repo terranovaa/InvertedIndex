@@ -14,10 +14,6 @@ import java.util.Map;
 
 public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
-    // encoded posting list used for performance during merge
-    private byte[] encodedDocIDs;
-    private byte[] encodedFrequencies;
-
     // used to keep file pointers during merge
     static public int docIDsFileOffset = 0;
     static public int frequenciesFileOffset = 0;
@@ -39,54 +35,14 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         deserializeBinary(buffer);
     }
 
-    // concatenates the new postings with the existing postings
-    public void mergeEncodedPostings(byte[] encodedDocIDs, byte[] encodedFrequencies){
-        //get current encoded partial posting list and extend with additional posting
-        if(this.encodedDocIDs == null){
-            this.encodedDocIDs = encodedDocIDs;
-            this.encodedFrequencies = encodedFrequencies;
-            //System.out.println("Empty");
-        } else {
-            //doc_ids
-            byte[] mergedDocIDsArray = new byte[this.encodedDocIDs.length + encodedDocIDs.length];
-            //fill the first part of the array with the array representing previous encoded posting list
-            System.arraycopy(this.encodedDocIDs, 0, mergedDocIDsArray, 0, this.encodedDocIDs.length);
-            //fill the second part of the array with the array representing the newly added posting list
-            System.arraycopy(encodedDocIDs, 0, mergedDocIDsArray, this.encodedDocIDs.length, encodedDocIDs.length);
-            this.encodedDocIDs = mergedDocIDsArray;
-
-            //frequencies, the process is the same as for docIds
-            byte[] mergedFrequenciesArray = new byte[this.encodedFrequencies.length + encodedFrequencies.length];
-            System.arraycopy(this.encodedFrequencies, 0, mergedFrequenciesArray, 0, this.encodedFrequencies.length);
-            System.arraycopy(encodedFrequencies, 0, mergedFrequenciesArray, this.encodedFrequencies.length, encodedFrequencies.length);
-            this.encodedFrequencies = mergedFrequenciesArray;
-        }
-    }
-
-    public void setEncodedPostings(byte[] encodedDocIDs, byte[] encodedFrequencies){
-        this.encodedDocIDs = encodedDocIDs;
-        this.encodedFrequencies = encodedFrequencies;
-        // decoding the posting lists
-        this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
-        this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
-    }
-
 
     public void computeStatistics(MappedByteBuffer docTableBuffer, CollectionStatistics collectionStatistics){
 
-        // decoding the posting lists
-        this.setPostingListDocIds(EncodingUtils.decode(this.encodedDocIDs));
-        this.setPostingListFrequencies(EncodingUtils.decode(this.encodedFrequencies));
-        int previousDocID = -1;
         // computing the term upper bound and collection frequency
         this.termUpperBound = -1;
         int i = 0;
         int collectionFrequency = 0;
-        int[] arr = this.postingListDocIds.stream().mapToInt(j -> j).toArray();
-        for(int docID: arr){
-            if(previousDocID != -1)
-                docID += previousDocID;
-            previousDocID = docID;
+        for(int docID: this.postingListDocIds){
             Document d = DiskDataStructuresSearch.docTableDiskSearch(docID, docTableBuffer);
             double score = ScoringFunctions.BM25(d.getLength(), this.postingListFrequencies.get(i), this, collectionStatistics);
             //double score = ScoringFunctions.TFIDF(this.postingListFrequencies.get(i), this, collectionStatistics);
@@ -100,28 +56,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
     }
 
     // used for writing to disk in binary format during merge
-    public void writeToDisk(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream) throws IOException {
-
-        // set inverted file offsets for this term
-        this.setDocIdsOffset(docIDsFileOffset);
-        this.setFrequenciesOffset(frequenciesFileOffset);
-
-        // updating general file docId offset and doc id size
-        docIDsFileOffset += this.encodedDocIDs.length;
-        docIdsSize += this.encodedDocIDs.length;
-        docIDStream.write(this.encodedDocIDs);
-
-        // updating general file frequency offset and frequency size
-        frequenciesFileOffset += this.encodedFrequencies.length;
-        frequenciesSize += this.encodedFrequencies.length;
-        frequenciesStream.write(this.encodedFrequencies);
-
-        // lexicon
-        lexiconStream.write(this.serialize());
-    }
-
-    // used for writing to disk in binary format during merge
-    public void writeRefinedPostingListToDisk(OutputStream docIDStream, ArrayList<Integer> oldPostingListDocIds) throws IOException {
+    public void writeToDisk(OutputStream docIDStream, OutputStream frequenciesStream, OutputStream lexiconStream, ArrayList<Integer> oldPostingListDocIds) throws IOException {
 
         int numSkipBlocks;
         int blockSize;
@@ -132,6 +67,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
         // if the posting list is long, create skip pointers to be used for nextGEQ implementation
         if (this.documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
+
             //create sqrt(df) blocks of sqrt(df) size (rounded to the highest value when needed)
             blockSize = (int) Math.ceil(Math.sqrt(this.documentFrequency));
             numSkipBlocks = (int) Math.ceil((double)this.documentFrequency / (double)blockSize);
@@ -152,7 +88,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
         // set inverted file offsets for this term
         this.setDocIdsOffset(docIDsFileOffset);
-        //this.setFrequenciesOffset(frequenciesFileOffset);
+        this.setFrequenciesOffset(frequenciesFileOffset);
 
         // writing the skip block to file before the doc ids
         if (skipPointers.size() > 0) {
@@ -169,9 +105,23 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
             docIDStream.write(skipPointersBytes);
         }
 
+        // encoded posting list used for performance during merge
+        byte[] encodedDocIDs = EncodingUtils.encode(postingListDocIds);
+
         // updating general file docId offset and doc id size
-        docIDsFileOffset += this.encodedDocIDs.length;
-        docIdsSize += this.encodedDocIDs.length;
-        docIDStream.write(this.encodedDocIDs);
+        docIDsFileOffset += encodedDocIDs.length;
+        docIdsSize += encodedDocIDs.length;
+        docIDStream.write(encodedDocIDs);
+
+        byte[] encodedFrequencies = EncodingUtils.encode(postingListFrequencies);
+
+        // updating general file frequency offset and frequency size
+        frequenciesFileOffset += encodedFrequencies.length;
+        frequenciesSize += encodedFrequencies.length;
+        frequenciesStream.write(encodedFrequencies);
+
+        // lexicon
+        lexiconStream.write(this.serialize());
     }
+
 }

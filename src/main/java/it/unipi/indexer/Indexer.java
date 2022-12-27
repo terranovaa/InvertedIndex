@@ -151,8 +151,6 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
 
     abstract public void merge();
 
-    abstract public void refineIndex();
-
     // same function for both binary and textual indexing, it just concatenates the partial files
     protected void mergePartialDocumentTables() throws IOException {
 

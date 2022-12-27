@@ -1,18 +1,17 @@
 package it.unipi.indexer;
 
-import it.unipi.models.*;
+import it.unipi.models.Document;
+import it.unipi.models.LexiconTermBinaryIndexing;
 import it.unipi.utils.Constants;
-import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.EncodingUtils;
 
 import java.io.*;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
     public BinaryIndexer() {
@@ -51,7 +50,8 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
                 // docIDs posting list
                 List<Integer> docIDs = lexiconTerm.getPostingListDocIds();
                 // encoding the docIds with VariableByte encoding
-                byte[] encodedDocIDs = EncodingUtils.encode(docIDs);
+                //byte[] encodedDocIDs = EncodingUtils.encode(docIDs);
+                byte[] encodedDocIDs = EncodingUtils.intListToByteArray(docIDs);
                 // moving the offset for the next posting list
                 docIDsFileOffset += encodedDocIDs.length;
                 // setting the size of the term's docIds posting list in bytes
@@ -61,7 +61,8 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
                 // frequencies posting list
                 List<Integer> frequencies = lexiconTerm.getPostingListFrequencies();
                 // encoding the frequencies with VariableByte encoding
-                byte[] encodedFrequencies = EncodingUtils.encode(frequencies);
+                //byte[] encodedFrequencies = EncodingUtils.encode(frequencies);
+                byte[] encodedFrequencies = EncodingUtils.intListToByteArray(frequencies);
                 // moving the offset for the next posting list
                 frequenciesFileOffset += encodedFrequencies.length;
                 // setting the size of the term's frequencies posting list in bytes
@@ -89,6 +90,13 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
     @Override
     public void merge(){
 
+        // merging the doc table
+        try {
+            mergePartialDocumentTables();
+        } catch (IOException ioe){
+            ioe.printStackTrace();
+        }
+
         // file paths
         String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION;
         String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION;
@@ -98,6 +106,10 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
             FileOutputStream outputDocIdsStream = new FileOutputStream(postingsDocIdsFile);
             FileOutputStream outputFrequenciesStream = new FileOutputStream(postingsFrequenciesFile);
             OutputStream outputLexiconStream = new BufferedOutputStream(new FileOutputStream(lexiconFile));
+
+            // loading the document table for term upper bound computation
+            FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + Constants.DAT_FORMAT));
+            MappedByteBuffer docTableBuffer = docTableChannel.map(FileChannel.MapMode.READ_ONLY, 0, docTableChannel.size()).load();
 
             // number of partial files to read from
             int numberOfBlocks = currentBlock + 1;
@@ -150,7 +162,9 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
                     // reading and merging the corresponding posting lists from disk
                     byte[] postingDocIDs = postingsDocIdsStreams.get(blockIndex).readNBytes(nextBlockToMerge.getDocIdsSize());
                     byte[] postingFrequencies = postingsFrequenciesStreams.get(blockIndex).readNBytes(nextBlockToMerge.getFrequenciesSize());
-                    referenceLexiconTerm.mergeEncodedPostings(postingDocIDs, postingFrequencies);
+                    //referenceLexiconTerm.mergeEncodedPostings(postingDocIDs, postingFrequencies);
+                    referenceLexiconTerm.getPostingListDocIds().addAll(EncodingUtils.byteArrayToIntList(postingDocIDs));
+                    referenceLexiconTerm.getPostingListFrequencies().addAll(EncodingUtils.byteArrayToIntList(postingFrequencies));
 
                     // reading  and deserializing the next term entry from file
                     bytesRead[blockIndex] = lexiconStreams.get(blockIndex).readNBytes(nextLexiconEntry[blockIndex], 0, Constants.LEXICON_ENTRY_SIZE);
@@ -166,12 +180,31 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
                     }
                 }
 
+                // computing term upper bound and collection frequency
+                referenceLexiconTerm.computeStatistics(docTableBuffer, collectionStatistics);
+
+                // gaps implementation
+                int previousDocId = -1;
+                int currentDocIdGap;
+                //ArrayList<Integer> postingListDocIds = EncodingUtils.decode(referenceLexiconTerm.getEncodedDocIDs());
+                ArrayList<Integer> postingListDocIds = referenceLexiconTerm.getPostingListDocIds();
+                ArrayList<Integer> postingListDocIdGaps = new ArrayList<>(postingListDocIds.size());
+                for(int currentDocId : postingListDocIds){
+                    currentDocIdGap = currentDocId;
+                    if(previousDocId != -1)  // not the head of the list
+                        currentDocIdGap -= previousDocId;
+                    previousDocId = currentDocId;
+                    postingListDocIdGaps.add(currentDocIdGap);
+                }
+
+                referenceLexiconTerm.setPostingListDocIds(postingListDocIdGaps);
+                //referenceLexiconTerm.setEncodedDocIDs(EncodingUtils.encode(postingListDocIdGaps));
+
                 // writing the term to the lexicon and the merged posting lists to the inverted index
-                referenceLexiconTerm.writeToDisk(outputDocIdsStream, outputFrequenciesStream, outputLexiconStream);
+                // old doc ids used only for defining the key of the skip pointer
+                referenceLexiconTerm.writeToDisk(outputDocIdsStream, outputFrequenciesStream, outputLexiconStream, postingListDocIds);
             }
 
-            // merging the doc table
-            mergePartialDocumentTables();
             outputDocIdsStream.close();
             outputFrequenciesStream.close();
             outputLexiconStream.close();
@@ -187,77 +220,4 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
             ioe.printStackTrace();
         }
     }
-
-    // function used for computing the term upper bound for each term
-    public void refineIndex() {
-
-        try (OutputStream outLexiconStream = new BufferedOutputStream(new FileOutputStream(Constants.LEXICON_FILE_PATH + FILE_EXTENSION));
-            InputStream inLexiconStream = new BufferedInputStream(new FileInputStream(Constants.MERGED_LEXICON_FILE_PATH + FILE_EXTENSION));
-             OutputStream outNewDocIdStream = new BufferedOutputStream(new FileOutputStream(Constants.POSTINGS_DOC_IDS_GAPS_FILE_PATH + FILE_EXTENSION));
-             InputStream inDocIdStream = new BufferedInputStream(new FileInputStream(Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION));
-            InputStream inFrequencyStream = new BufferedInputStream(new FileInputStream(Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION))
-        )
-        {
-            // loading the collection statistics and the document table
-            CollectionStatistics cs = DiskDataStructuresSearch.readCollectionStatistics();
-            FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + Constants.DAT_FORMAT));
-            MappedByteBuffer docTableBuffer = docTableChannel.map(FileChannel.MapMode.READ_ONLY, 0, docTableChannel.size()).load();
-
-            byte[] buffer = new byte[Constants.LEXICON_ENTRY_SIZE];
-            int bytesRead = inLexiconStream.read(buffer);
-            LexiconTermBinaryIndexing.docIDsFileOffset = 0;
-            LexiconTermBinaryIndexing.frequenciesFileOffset = 0;
-            // for each term
-            while(bytesRead == Constants.LEXICON_ENTRY_SIZE) {
-
-                LexiconTermBinaryIndexing entry = new LexiconTermBinaryIndexing();
-                entry.deserializeBinary(buffer);
-
-                // getting posting lists
-                byte[] postingDocIDs = inDocIdStream.readNBytes(entry.getDocIdsSize());
-                byte[] postingFrequencies = inFrequencyStream.readNBytes(entry.getFrequenciesSize());
-
-                // gaps implementation
-                int previousDocID = -1;
-                int newCurrentDocID;
-                ArrayList<Integer> postingListNewDocIds = new ArrayList<>();
-                ArrayList<Integer> postingListOldDocIds = EncodingUtils.decode(postingDocIDs);
-                byte[] newEncoding;
-                for(int completeDocID: postingListOldDocIds){
-                    newCurrentDocID = completeDocID;
-                    if(previousDocID != -1)  // not the head of the list
-                        newCurrentDocID -= previousDocID;
-                    previousDocID = completeDocID;
-                    postingListNewDocIds.add(newCurrentDocID);
-                }
-
-                newEncoding = EncodingUtils.encode(postingListNewDocIds);
-
-                // old doc ids used only for defining the key of the skip pointer
-                entry.setEncodedPostings(newEncoding, postingFrequencies);
-                entry.writeRefinedPostingListToDisk(outNewDocIdStream, postingListOldDocIds);
-
-                // computing term upper bound and collection frequency
-                entry.computeStatistics(docTableBuffer, cs);
-
-                // writing to definitive lexicon file
-                outLexiconStream.write(entry.serialize());
-                bytesRead = inLexiconStream.read(buffer);
-            }
-
-        } catch (IOException ee) {
-            ee.printStackTrace();
-        }
-
-        Path source = Paths.get(Constants.POSTINGS_DOC_IDS_GAPS_FILE_PATH + FILE_EXTENSION);
-
-        try{
-            // rename a file in the same directory
-            Files.move(source, source.resolveSibling("postings_doc_ids.dat"), StandardCopyOption.REPLACE_EXISTING);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
 }

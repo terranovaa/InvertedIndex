@@ -85,6 +85,14 @@ public class EncodingUtils {
         return ByteBuffer.allocate(4).putInt(value).array();
     }
 
+    public static byte[] intListToByteArray(List<Integer> values) {
+        ByteBuffer byteBuffer = ByteBuffer.allocate(values.size() * 4);
+        for (Integer value: values) {
+            byteBuffer.putInt(value);
+        }
+        return byteBuffer.array();
+    }
+
     //given a double return the byte representation
     public static byte[] doubleToByteArray(double value) {
         return ByteBuffer.allocate(8).putDouble(value).array();
@@ -98,6 +106,15 @@ public class EncodingUtils {
     // given the byte representation return an integer
     public static int byteArrayToInt(byte[] value, int startIndex) {
         return ByteBuffer.wrap(value).getInt(startIndex);
+    }
+
+    public static List<Integer> byteArrayToIntList(byte[] value) {
+        ByteBuffer byteBuffer = ByteBuffer.wrap(value);
+        ArrayList<Integer> intList = new ArrayList<>(value.length / 4);
+        while (byteBuffer.hasRemaining()) {
+            intList.add(byteBuffer.getInt());
+        }
+        return intList;
     }
 
     // given the byte representation return a long
