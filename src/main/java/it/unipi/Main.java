@@ -54,14 +54,6 @@ public class Main {
         long endMerge = System.currentTimeMillis();
         System.out.println("Merged in " + (endMerge - startMerge) + " ms");
 
-        /*
-        // refining
-        long startRefineIndex = System.currentTimeMillis();
-        indexer.refineIndex();
-        long endRefineIndex = System.currentTimeMillis();
-        System.out.println("Refined in " + (endRefineIndex - startRefineIndex) + " ms");
-
-         */
         // deleting the folders
         FileSystemUtils.deleteTemporaryFolders();
     }
