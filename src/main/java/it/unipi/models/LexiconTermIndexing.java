@@ -21,11 +21,6 @@ public class LexiconTermIndexing extends LexiconTerm {
 
     public void setPostingListDocIds(ArrayList<Integer> postingListDocIds) {
         this.postingListDocIds = postingListDocIds;
-        lastDocIdInserted = postingListDocIds.get(postingListDocIds.size()-1);
-    }
-
-    public void setPostingListFrequencies(ArrayList<Integer> postingListFrequencies) {
-        this.postingListFrequencies = postingListFrequencies;
     }
 
     public LexiconTermIndexing() {

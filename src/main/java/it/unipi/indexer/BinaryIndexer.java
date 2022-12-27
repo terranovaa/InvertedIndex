@@ -162,7 +162,6 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
                     // reading and merging the corresponding posting lists from disk
                     byte[] postingDocIDs = postingsDocIdsStreams.get(blockIndex).readNBytes(nextBlockToMerge.getDocIdsSize());
                     byte[] postingFrequencies = postingsFrequenciesStreams.get(blockIndex).readNBytes(nextBlockToMerge.getFrequenciesSize());
-                    //referenceLexiconTerm.mergeEncodedPostings(postingDocIDs, postingFrequencies);
                     referenceLexiconTerm.getPostingListDocIds().addAll(EncodingUtils.byteArrayToIntList(postingDocIDs));
                     referenceLexiconTerm.getPostingListFrequencies().addAll(EncodingUtils.byteArrayToIntList(postingFrequencies));
 
@@ -198,7 +197,6 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
                 }
 
                 referenceLexiconTerm.setPostingListDocIds(postingListDocIdGaps);
-                //referenceLexiconTerm.setEncodedDocIDs(EncodingUtils.encode(postingListDocIdGaps));
 
                 // writing the term to the lexicon and the merged posting lists to the inverted index
                 // old doc ids used only for defining the key of the skip pointer
