@@ -180,8 +180,4 @@ public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
             ioe.printStackTrace();
         }
     }
-
-    @Override
-    public void refineIndex() {
-    }
 }
