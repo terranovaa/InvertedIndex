@@ -2,6 +2,7 @@ package it.unipi.models;
 
 import it.unipi.query.processor.QueryProcessor;
 import it.unipi.utils.DiskDataStructuresSearch;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,7 +16,7 @@ public class PostingListInterfaceTest {
     private QueryProcessor queryProcessor;
 
     @BeforeEach
-    void setup() throws IOException {
+    void setup() throws IOException, ConfigurationException {
         queryProcessor = new QueryProcessor();
     }
 

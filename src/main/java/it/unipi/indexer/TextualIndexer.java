@@ -3,6 +3,7 @@ package it.unipi.indexer;
 import it.unipi.models.Document;
 import it.unipi.models.LexiconTermTextualIndexing;
 import it.unipi.utils.Constants;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -12,7 +13,7 @@ import java.util.Map;
 // This class was used when we were building the index just to check if everything worked
 public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
 
-    public TextualIndexer() {
+    public TextualIndexer() throws ConfigurationException, IOException {
         super(LexiconTermTextualIndexing::new, Constants.TXT_FORMAT);
     }
 

@@ -4,10 +4,13 @@ import it.unipi.models.CollectionStatistics;
 import it.unipi.models.Document;
 import it.unipi.models.LexiconTermIndexing;
 import it.unipi.utils.Constants;
+import it.unipi.utils.FileSystemUtils;
 import it.unipi.utils.TextProcessingUtils;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import java.io.*;
 import java.lang.management.ManagementFactory;
@@ -38,12 +41,17 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
     // can be .txt or .dat
     protected final String FILE_EXTENSION;
     // number of terms
-    private int numTerms = 0;
+    private int numTokens = 0;
+    private final boolean stemming;
+    private final boolean stopwordsRemoval;
 
-    public Indexer(Supplier<? extends T> lexiconTermConstructor, String fileExtension) {
+    public Indexer(Supplier<? extends T> lexiconTermConstructor, String fileExtension) throws ConfigurationException, IOException {
         this.lexiconTermConstructor = lexiconTermConstructor;
         FILE_EXTENSION = fileExtension.toLowerCase();
         System.out.println("Using "+ FILE_EXTENSION + " as file extension..");
+        Configuration appProperties = FileSystemUtils.loadAppProperties();
+        stemming = appProperties.getBoolean("stemming");
+        stopwordsRemoval = appProperties.getBoolean("stopwords");
     }
 
     public void indexCollection() throws IOException {
@@ -75,21 +83,23 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
 
                 for (String token: tokens) {
                     // if the token is a stop word move on
-                    if (TextProcessingUtils.isAStopWord(token))
+                    if (stopwordsRemoval && TextProcessingUtils.isAStopWord(token))
                         continue;
                     docLen++;
                     // if the token is longer than 20 chars we truncate it
                     token = TextProcessingUtils.truncateToken(token);
-                    // applying the snowball stemmer
-                    token = TextProcessingUtils.stemToken(token);
+                    if (stemming) {
+                        // applying the snowball stemmer
+                        token = TextProcessingUtils.stemToken(token);
+                    }
+                    // updating collection statistics
+                    numTokens++;
                     // if the token is not already in the lexicon we create a new entry
                     T lexiconEntry;
                     if ((lexiconEntry = lexicon.get(token)) == null) { // O(1)
                         lexiconEntry = lexiconTermConstructor.get(); // calls the constructor based on T
                         lexiconEntry.setTerm(token);
                         lexicon.put(token, lexiconEntry);
-                        // updating collection statistics
-                        numTerms++;
                     }
                     // if the docId is already in the posting of the term we increase its frequency, otherwise we add it to the list with frequency 1
                     lexiconEntry.addToPostingList(currentDocId);
@@ -111,7 +121,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
 
             // final statistics
             collectionStatistics.setNumDocs(currentDocId);
-            collectionStatistics.setAvgDocLen((double) numTerms / currentDocId);
+            collectionStatistics.setAvgDocLen((double) numTokens / currentDocId);
 
             writeBlockToDisk();
             lexicon.clear();

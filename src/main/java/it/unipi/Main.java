@@ -6,12 +6,13 @@ import it.unipi.indexer.TextualIndexer;
 import it.unipi.query.processor.QueryProcessor;
 import it.unipi.utils.Constants;
 import it.unipi.utils.FileSystemUtils;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import java.io.IOException;
 
 public class Main {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, ConfigurationException {
         if (args.length == 0){
             // default case: no args => indexing, DAT format
             index(Constants.DAT_FORMAT);
@@ -35,7 +36,7 @@ public class Main {
         }
     }
 
-    public static void index(String fileFormat) throws IOException{
+    public static void index(String fileFormat) throws IOException, ConfigurationException {
 
         // creating the folders
         FileSystemUtils.setupEnvironment();

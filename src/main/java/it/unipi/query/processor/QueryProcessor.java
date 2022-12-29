@@ -5,10 +5,9 @@ import com.google.common.cache.CacheBuilder;
 import it.unipi.exceptions.IllegalQueryTypeException;
 import it.unipi.exceptions.NoResultsFoundException;
 import it.unipi.models.*;
-import it.unipi.utils.Constants;
-import it.unipi.utils.DiskDataStructuresSearch;
-import it.unipi.utils.ScoringFunctions;
-import it.unipi.utils.TextProcessingUtils;
+import it.unipi.utils.*;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -39,7 +38,10 @@ public class QueryProcessor {
     // number of documents to be returned by the query processor
     private int k;
 
-    public QueryProcessor() throws IOException{
+    private final boolean stemming;
+    private final boolean stopwordsRemoval;
+
+    public QueryProcessor() throws IOException, ConfigurationException {
 
         //used to compute scoring functions
         collectionStatistics = DiskDataStructuresSearch.readCollectionStatistics();
@@ -53,6 +55,9 @@ public class QueryProcessor {
         //used for binary search over lexicon data structure
         numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
 
+        Configuration appProperties = FileSystemUtils.loadAppProperties();
+        stemming = appProperties.getBoolean("stemming");
+        stopwordsRemoval = appProperties.getBoolean("stopwords");
     }
 
     public void commandLine(){
@@ -160,9 +165,11 @@ public class QueryProcessor {
         for (int i = 1; i < limit; ++i){
             // skipping first token specifying the type of the query
             String token = tokens[i];
-            if(TextProcessingUtils.isAStopWord(token)) continue; // removing stopwords
+            if(stopwordsRemoval && TextProcessingUtils.isAStopWord(token)) continue; // removing stopwords
             token = TextProcessingUtils.truncateToken(token);
-            token = TextProcessingUtils.stemToken(token);
+            if (stemming) {
+                token = TextProcessingUtils.stemToken(token);
+            }
             tokenSet.add(token);
         }
 

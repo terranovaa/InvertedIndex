@@ -5,6 +5,7 @@ import it.unipi.models.DocumentScore;
 import it.unipi.models.LexiconTerm;
 import it.unipi.utils.DiskDataStructuresSearch;
 import it.unipi.utils.TextProcessingUtils;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +18,7 @@ public class QueryProcessorTests {
 
     QueryProcessor queryProcessor = new QueryProcessor();
 
-    public QueryProcessorTests() throws IOException {
+    public QueryProcessorTests() throws IOException, ConfigurationException {
     }
 
     @Test

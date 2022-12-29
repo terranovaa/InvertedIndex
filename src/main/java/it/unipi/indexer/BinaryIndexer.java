@@ -4,6 +4,7 @@ import it.unipi.models.Document;
 import it.unipi.models.LexiconTermBinaryIndexing;
 import it.unipi.utils.Constants;
 import it.unipi.utils.EncodingUtils;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import java.io.*;
 import java.nio.MappedByteBuffer;
@@ -14,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
-    public BinaryIndexer() {
+    public BinaryIndexer() throws ConfigurationException, IOException {
         super(LexiconTermBinaryIndexing::new, Constants.DAT_FORMAT);
     }
 

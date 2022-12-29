@@ -1,5 +1,9 @@
 package it.unipi.utils;
 
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.builder.fluent.Configurations;
+import org.apache.commons.configuration2.ex.ConfigurationException;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,5 +36,31 @@ public final class FileSystemUtils {
                 e.printStackTrace();
             }
         }
+    }
+
+    public static Configuration loadAppProperties() throws IOException, ConfigurationException {
+        Configurations configs = new Configurations();
+        Configuration applicationProperties;
+        File appProps = new File("application.properties");
+        try {
+            boolean fileCreated = appProps.createNewFile();
+            try {
+                applicationProperties = configs.properties(new File("application.properties"));
+                // if the file did not exist we add default options
+                if (fileCreated) {
+                    applicationProperties.addProperty("stemming", true);
+                    applicationProperties.addProperty("stopwords", true);
+                }
+                System.out.println("App properties loaded. Stemming: " + applicationProperties.getBoolean("stemming") + ", stopwords removal: " + applicationProperties.getBoolean("stopwords"));
+            } catch (ConfigurationException cex) {
+                System.out.println("There was a problem while parsing the application.properties file");
+                throw cex;
+            }
+        } catch (IOException | ConfigurationException e) {
+            e.printStackTrace();
+            throw e;
+        }
+
+        return applicationProperties;
     }
 }
