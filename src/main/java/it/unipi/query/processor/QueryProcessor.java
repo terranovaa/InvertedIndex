@@ -41,6 +41,7 @@ public class QueryProcessor {
 
     public QueryProcessor() throws IOException{
 
+        //used to compute scoring functions
         collectionStatistics = DiskDataStructuresSearch.readCollectionStatistics();
         docsPriorityQueue = new TreeSet<>();
 
@@ -49,9 +50,9 @@ public class QueryProcessor {
         FileChannel docTableChannel = FileChannel.open(Paths.get(Constants.DOCUMENT_TABLE_FILE_PATH + Constants.DAT_FORMAT));
         docTableBuffer = docTableChannel.map(FileChannel.MapMode.READ_ONLY, 0, docTableChannel.size()).load();
 
+        //used for binary search over lexicon data structure
         numberOfTerms = (int)lexiconChannel.size() / Constants.LEXICON_ENTRY_SIZE;
 
-        k = Constants.NUMBER_OF_OUTPUT_DOCUMENTS;
     }
 
     public void commandLine(){
@@ -67,7 +68,7 @@ public class QueryProcessor {
                     System.out.println("Shutting down...");
                     break;
                 }
-                runQuery(line, k);
+                runQuery(line, Constants.NUMBER_OF_OUTPUT_DOCUMENTS);
                 System.out.print("> ");
             }
         } catch (IOException e) {
@@ -103,6 +104,7 @@ public class QueryProcessor {
 
         SortedSet<DocumentScore> results = new TreeSet<>();
 
+        // if the query was successful, save query results in cache
         if (success) {
 
             results.addAll(docsPriorityQueue);
@@ -115,6 +117,7 @@ public class QueryProcessor {
                 else{
                     tokenSet.add("or");
                 }
+                // save query type, query tokens and output documents
                 queryCache.put(tokenSet, results);
             }
 
@@ -145,8 +148,7 @@ public class QueryProcessor {
             if(i < tokens.length-1)
                 System.out.print(tokens[i] + ", ");
             else
-                System.out.print(tokens[i]);
-        System.out.println();
+                System.out.print(tokens[i] + '\n');
 
         int limit = tokens.length;
         if (tokens.length > Constants.MAX_QUERY_LENGTH) {
@@ -177,12 +179,13 @@ public class QueryProcessor {
 
         HashMap<String, LexiconTerm> lexiconTerms = new HashMap<>();
 
-        // retrieving the terms info from the lexicon
+        // retrieving the terms' info from the lexicon
         for (String token : tokenSet) {
             LexiconTerm lexiconTerm;
             lexiconTerm = DiskDataStructuresSearch.lexiconDiskSearch(token, numberOfTerms, lexiconBuffer);
 
             if (lexiconTerm == null) {
+                //if one of the query terms isn't present in the lexicon and the query type is conjunctive, no documents are returned
                 if(queryType == QueryType.CONJUNCTIVE){
                     return false;
                 }
