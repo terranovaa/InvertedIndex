@@ -7,7 +7,6 @@ public class LexiconTermIndexing extends LexiconTerm {
     // posting list of the term used during Indexing
     protected ArrayList<Integer> postingListDocIds = new ArrayList<>();
     protected ArrayList<Integer> postingListFrequencies = new ArrayList<>();
-    // used for performance
     private int lastDocIdInserted;
 
 
@@ -33,6 +32,7 @@ public class LexiconTermIndexing extends LexiconTerm {
         lastDocIdInserted = -1;
     }
 
+    // used for the initial creation of the partial posting lists
     public void addToPostingList(int docID) {
         if(lastDocIdInserted != docID){
             // new document, thus new posting

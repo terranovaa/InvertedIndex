@@ -104,12 +104,15 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
         if (!docIdsBuffer.hasRemaining() || !freqBuffer.hasRemaining()) return false;
 
         List<Byte> encodedDocId = getNextInt(docIdsBuffer);
+
+        // if the current posting is the first in the posting list, currentDocID is the real docID
         currentDocID = EncodingUtils.decode(encodedDocId).get(0);
 
-        // gaps
+        // if the current posting is not the first, currentDocID is the gap from the previous one, so we compute the actual docID
         if(previousDocID != -1)
             currentDocID += previousDocID;
 
+        // save currentID as the last docID read, it will be needed to compute the next one
         previousDocID = currentDocID;
 
         List<Byte> encodedFreq = getNextInt(freqBuffer);
@@ -161,6 +164,7 @@ public class PostingListInterface implements Comparable<PostingListInterface> {
             docIdsBuffer.position(docIdsStartingOffset + skipDocIdOffset);
             freqBuffer.position(skipFreqOffset);
             next();
+
             currentDocID = skipDocId;
             previousDocID = skipDocId;
         }

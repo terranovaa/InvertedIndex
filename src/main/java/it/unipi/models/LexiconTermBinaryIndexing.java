@@ -32,7 +32,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
     //decode a disk-based array of bytes representing a lexicon entry in a LexiconTermIndexing object
     public void deserialize(byte[] buffer) {
-        deserializeBinary(buffer);
+        this.deserializeBinary(buffer);
     }
 
 
@@ -44,6 +44,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
         int collectionFrequency = 0;
         for(int docID: this.postingListDocIds){
             Document d = DiskDataStructuresSearch.docTableDiskSearch(docID, docTableBuffer);
+            //we use BM25 as scoring function
             double score = ScoringFunctions.BM25(d.getLength(), this.postingListFrequencies.get(i), this, collectionStatistics);
             //double score = ScoringFunctions.TFIDF(this.postingListFrequencies.get(i), this, collectionStatistics);
             if (score > this.termUpperBound){
@@ -63,7 +64,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
         // (doc id,offsets) list for skip pointers
         LinkedHashMap<Integer, SkipPointerEntry> skipPointers = new LinkedHashMap<>();
-        docIdsSize = 0;
+        this.docIdsSize = 0;
 
         // if the posting list is long, create skip pointers to be used for nextGEQ implementation
         if (this.documentFrequency > Constants.SKIP_POINTERS_THRESHOLD) {
@@ -101,7 +102,7 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
                 i++;
             }
             docIDsFileOffset += skipPointersBytes.length;
-            docIdsSize += skipPointersBytes.length;
+            this.docIdsSize += skipPointersBytes.length;
             docIDStream.write(skipPointersBytes);
         }
 
@@ -110,14 +111,14 @@ public class LexiconTermBinaryIndexing extends LexiconTermIndexing {
 
         // updating general file docId offset and doc id size
         docIDsFileOffset += encodedDocIDs.length;
-        docIdsSize += encodedDocIDs.length;
+        this.docIdsSize += encodedDocIDs.length;
         docIDStream.write(encodedDocIDs);
 
         byte[] encodedFrequencies = EncodingUtils.encode(postingListFrequencies);
 
         // updating general file frequency offset and frequency size
         frequenciesFileOffset += encodedFrequencies.length;
-        frequenciesSize += encodedFrequencies.length;
+        this.frequenciesSize += encodedFrequencies.length;
         frequenciesStream.write(encodedFrequencies);
 
         // lexicon
