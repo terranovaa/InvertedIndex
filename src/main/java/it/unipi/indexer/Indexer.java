@@ -32,7 +32,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
     protected final TreeMap<String, T> lexicon = new TreeMap<>();
     // used to call the right constructor based on the type of T
     private final Supplier<? extends T> lexiconTermConstructor;
-    // doc table, ysing a LinkedHashMap because we need to maintain the insertion order
+    // doc table, using a LinkedHashMap because we need to maintain the insertion order
     protected final LinkedHashMap<Integer, Document> documentTable = new LinkedHashMap<>();
     // collection statistics
     protected final CollectionStatistics collectionStatistics = new CollectionStatistics();
