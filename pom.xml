@@ -36,5 +36,10 @@
             <version>5.9.1</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.tartarus</groupId>
+            <artifactId>snowball</artifactId>
+            <version>1.0</version>
+        </dependency>
     </dependencies>
 </project>

@@ -181,7 +181,4 @@ public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
         }
     }
 
-    @Override
-    public void refineIndex() {
-    }
 }
