@@ -20,7 +20,7 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
 
     // function that writes to disk the partial data structures
     @Override
-    protected void writeToDisk(){
+    protected void writeBlockToDisk(){
 
         // partial file paths
         String postingsDocIdsFile = Constants.PARTIAL_POSTINGS_DOC_IDS_FILE_PATH + currentBlock + FILE_EXTENSION;
@@ -88,7 +88,7 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
 
     // function that merges the partial data structures and writes the merged files to disk
     @Override
-    public void merge(){
+    public void mergeBlocks(){
 
         // merging the doc table
         try {
@@ -100,7 +100,7 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
         // file paths
         String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION;
         String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION;
-        String lexiconFile = Constants.MERGED_LEXICON_FILE_PATH + FILE_EXTENSION;
+        String lexiconFile = Constants.LEXICON_FILE_PATH + FILE_EXTENSION;
 
         try {
             FileOutputStream outputDocIdsStream = new FileOutputStream(postingsDocIdsFile);
@@ -147,16 +147,18 @@ public class BinaryIndexer extends Indexer<LexiconTermBinaryIndexing> {
             while(activeBlocks.size() > 0){
 
                 // getting the indexes of the blocks containing the minimum term in lexicographical order
-                List<Integer> lexiconsToMerge = getLexiconsToMerge(activeBlocks, nextTerm);
+                List<Integer> blocksToMerge = getBlocksToMerge(activeBlocks, nextTerm);
 
                 // creating a new lexiconTerm object for the min term
-                LexiconTermBinaryIndexing referenceLexiconTerm = new LexiconTermBinaryIndexing(nextTerm[lexiconsToMerge.get(0)].getTerm());
+                LexiconTermBinaryIndexing referenceLexiconTerm = new LexiconTermBinaryIndexing(nextTerm[blocksToMerge.get(0)].getTerm());
 
                 // merging the encoded posting lists
-                for (Integer blockIndex: lexiconsToMerge){
+                for (Integer blockIndex: blocksToMerge){
 
+                    //get partial information about the term stored in the current block
                     LexiconTermBinaryIndexing nextBlockToMerge = nextTerm[blockIndex];
 
+                    //merge document frequencies
                     referenceLexiconTerm.setDocumentFrequency(referenceLexiconTerm.getDocumentFrequency() + nextBlockToMerge.getDocumentFrequency());
 
                     // reading and merging the corresponding posting lists from disk

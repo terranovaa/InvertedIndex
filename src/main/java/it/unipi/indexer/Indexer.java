@@ -113,7 +113,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
             collectionStatistics.setNumDocs(currentDocId);
             collectionStatistics.setAvgDocLen((double) numTerms / currentDocId);
 
-            writeToDisk();
+            writeBlockToDisk();
             lexicon.clear();
             documentTable.clear();
         } else {
@@ -124,7 +124,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
     // function used for checking used heap
     protected void checkMemory(){
         if (memoryAboveThreshold(Constants.MEMORY_FULL_THRESHOLD_PERCENTAGE)) {
-            writeToDisk();
+            writeBlockToDisk();
             currentBlock++;
             lexicon.clear();
             documentTable.clear();
@@ -146,9 +146,9 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
     }
 
     // these functions are abstract because their implementation depends on the type of indexing
-    abstract void writeToDisk();
+    abstract void writeBlockToDisk();
 
-    abstract public void merge();
+    abstract public void mergeBlocks();
 
     // same function for both binary and textual indexing, it just concatenates the partial files
     protected void mergePartialDocumentTables() throws IOException {
@@ -183,9 +183,9 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
     }
 
     // this function gets the indexes of the blocks containing the minimum term in lexicographical order
-    protected ArrayList<Integer> getLexiconsToMerge(List<Integer> activeBlocks, T[] nextTerm) {
+    protected ArrayList<Integer> getBlocksToMerge(List<Integer> activeBlocks, T[] nextTerm) {
 
-        ArrayList<Integer> lexiconsToMerge = new ArrayList<>();
+        ArrayList<Integer> blocksToMerge = new ArrayList<>();
 
         String minTerm = null;
 
@@ -199,10 +199,10 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
         //getting the blocks that contain the current minimum term
         for(Integer blockIndex: activeBlocks){
             if(nextTerm[blockIndex].getTerm().equals(minTerm)){
-                lexiconsToMerge.add(blockIndex);
+                blocksToMerge.add(blockIndex);
             }
         }
 
-        return lexiconsToMerge;
+        return blocksToMerge;
     }
 }

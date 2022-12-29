@@ -50,7 +50,7 @@ public class Main {
 
         // merging
         long startMerge = System.currentTimeMillis();
-        indexer.merge();
+        indexer.mergeBlocks();
         long endMerge = System.currentTimeMillis();
         System.out.println("Merged in " + (endMerge - startMerge) + " ms");
 

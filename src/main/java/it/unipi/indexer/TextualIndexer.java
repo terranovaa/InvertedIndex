@@ -17,7 +17,7 @@ public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
     }
 
     @Override
-    protected void writeToDisk(){
+    protected void writeBlockToDisk(){
 
         // partial file paths
         String postingsDocIdsFile = Constants.PARTIAL_POSTINGS_DOC_IDS_FILE_PATH + currentBlock + FILE_EXTENSION;
@@ -80,12 +80,12 @@ public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
 
     // function that merges the partial data structures and writes the merged files to disk
     @Override
-    public void merge(){
+    public void mergeBlocks(){
 
         // file paths
         String postingsDocIdsFile = Constants.POSTINGS_DOC_IDS_FILE_PATH + FILE_EXTENSION;
         String postingsFrequenciesFile = Constants.POSTINGS_FREQUENCIES_FILE_PATH + FILE_EXTENSION;
-        String lexiconFile = Constants.MERGED_LEXICON_FILE_PATH + FILE_EXTENSION;
+        String lexiconFile = Constants.LEXICON_FILE_PATH + FILE_EXTENSION;
 
         try (BufferedWriter outputDocIdsStream = new BufferedWriter(new FileWriter(postingsDocIdsFile));
              BufferedWriter outputFrequenciesStream = new BufferedWriter(new FileWriter(postingsFrequenciesFile));
@@ -126,13 +126,13 @@ public class TextualIndexer extends Indexer<LexiconTermTextualIndexing> {
             while(activeBlocks.size() > 0){
 
                 // getting the indexes of the blocks containing the minimum term in lexicographical order
-                List<Integer> lexiconsToMerge = getLexiconsToMerge(activeBlocks, nextTerm);
+                List<Integer> blocksToMerge = getBlocksToMerge(activeBlocks, nextTerm);
 
                 // creating a new lexiconTerm object for the min term
-                LexiconTermTextualIndexing referenceLexiconTerm = new LexiconTermTextualIndexing(nextTerm[lexiconsToMerge.get(0)].getTerm());
+                LexiconTermTextualIndexing referenceLexiconTerm = new LexiconTermTextualIndexing(nextTerm[blocksToMerge.get(0)].getTerm());
 
                 //merging everything
-                for (Integer blockIndex: lexiconsToMerge){
+                for (Integer blockIndex: blocksToMerge){
 
                     LexiconTermTextualIndexing nextBlockToMerge = nextTerm[blockIndex];
 

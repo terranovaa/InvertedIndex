@@ -13,7 +13,6 @@ public final class Constants {
     public static final String PARTIAL_POSTINGS_FREQUENCIES_FILE_PATH = RESOURCES_PATH + INVERTED_INDEX_PATH + "postings_frequencies";
     public static final String POSTINGS_FREQUENCIES_FILE_PATH = RESOURCES_PATH + "postings_frequencies";
 
-    public static final String MERGED_LEXICON_FILE_PATH = RESOURCES_PATH + "lexicon/merged_lexicon";
     public static final String LEXICON_FILE_PATH = RESOURCES_PATH + "lexicon";
     public static final String PARTIAL_LEXICON_FILE_PATH = RESOURCES_PATH + "lexicon/lexicon";
 
