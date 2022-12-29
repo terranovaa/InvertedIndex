@@ -21,16 +21,15 @@ import java.util.function.Supplier;
 
 // class is parametrized due to the fact that indexing can be either Binary or Textual (ASCII)
 abstract public class Indexer <T extends LexiconTermIndexing> {
-
     // current doc id
     protected int currentDocId = 0;
     // useful for giving different names to partial files
     protected int currentBlock = 0;
-    // partial lexicon. Using a TreeMap in order to have lexicographical order (insert operation is O(log(N)))
+    // partial lexicon, using a TreeMap in order to have lexicographical order (inserting operation is O(log(N)))
     protected final TreeMap<String, T> lexicon = new TreeMap<>();
     // used to call the right constructor based on the type of T
     private final Supplier<? extends T> lexiconTermConstructor;
-    // doc table. Using a LinkedHashMap because we need to maintain the insertion order
+    // doc table, ysing a LinkedHashMap because we need to maintain the insertion order
     protected final LinkedHashMap<Integer, Document> documentTable = new LinkedHashMap<>();
     // collection statistics
     protected final CollectionStatistics collectionStatistics = new CollectionStatistics();
@@ -38,7 +37,7 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
     protected final MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
     // can be .txt or .dat
     protected final String FILE_EXTENSION;
-
+    // number of terms
     private int numTerms = 0;
 
     public Indexer(Supplier<? extends T> lexiconTermConstructor, String fileExtension) {
@@ -83,14 +82,14 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
                     token = TextProcessingUtils.truncateToken(token);
                     // applying the snowball stemmer
                     token = TextProcessingUtils.stemToken(token);
-                    // updating collection statistics
-                    numTerms++;
                     // if the token is not already in the lexicon we create a new entry
                     T lexiconEntry;
                     if ((lexiconEntry = lexicon.get(token)) == null) { // O(1)
                         lexiconEntry = lexiconTermConstructor.get(); // calls the constructor based on T
                         lexiconEntry.setTerm(token);
                         lexicon.put(token, lexiconEntry);
+                        // updating collection statistics
+                        numTerms++;
                     }
                     // if the docId is already in the posting of the term we increase its frequency, otherwise we add it to the list with frequency 1
                     lexiconEntry.addToPostingList(currentDocId);
