@@ -1,11 +1,10 @@
 # Information Retrieval Project
 
 ### The problem
-The scope of this project is the implementation of an index structure based on the document col-
-lection Passage ranking dataset available on this page: https://microsoft.github.io/msmarco/TREC-Deep-Learning-2020.
+The scope of this project is the implementation of an index structure based on the document collection "Passage ranking dataset" available on this page: https://microsoft.github.io/msmarco/TREC-Deep-Learning-2020.
 This solution allows to handle information retrieval in front of a massive scale of documents, starting
 from the design of the data structures needed, implementing a scalable indexing and going towards
-query processing
+query processing.
 
 ### Snowball Stemmer Installation 
 The snowball stemmer should be installed manually due to the absence of support from Maven using the following command:
@@ -16,7 +15,7 @@ mvn install:install-file -Dfile=./resources/libstemmer.jar -Dpackaging=jar -Dgro
 The stemmer jar file is included in the resources folder.
 <br/>
 
-### How to use out solution
+### How to use our solution
 The project contains a ready-to-use jar file that can be used to test our solution.
 <br/>
 The first parameter can be used to choose if the indexing or the query processing component should be used.
@@ -43,6 +42,7 @@ Once launched, the query processing component will require an input query accord
 <pre>
 Input Format: [AND—OR] term1 ... termN
 </pre> 
+The top k documents according to BM25 will be given in output.
 
 ### Stopwords removal and stemming
 Stopwords removal and stemming are used by default.<br />
