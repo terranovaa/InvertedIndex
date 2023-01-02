@@ -21,9 +21,6 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 
 // class is parametrized due to the fact that indexing can be either Binary or Textual (ASCII)
 abstract public class Indexer <T extends LexiconTermIndexing> {
@@ -59,7 +56,6 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
 
     public void indexCollection() throws IOException {
         File file = new File(Constants.COLLECTION_PATH);
-        Pattern pattern = Pattern.compile("[.+\\t.+\\n]", Pattern.UNICODE_CASE);
         // reading the compressed tar.gz file
         final TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(file)));
         TarArchiveEntry tarArchiveEntry = tarArchiveInputStream.getNextTarEntry();
@@ -72,15 +68,17 @@ abstract public class Indexer <T extends LexiconTermIndexing> {
             while ((line = bufferedReader.readLine()) != null) {
                 // checking if the used memory has reached the threshold
                 checkMemory();
-                Matcher matcher = pattern.matcher(line);
-                boolean matchFound = matcher.find();
-                if(!matchFound) {
-                    System.out.println("Found line not respecting the format");
+
+                int separator = line.indexOf("\t");
+
+                // malformed line, no \t
+                if (separator == -1) {
                     continue;
                 }
+
                 // doc_no and document are separated by \t
-                String docNo = line.substring(0, line.indexOf("\t"));
-                String document = line.substring(line.indexOf("\t") + 1);
+                String docNo = line.substring(0, separator);
+                String document = line.substring(separator + 1);
 
                 // if the document is empty we move on
                 if(document.length() == 0) continue;

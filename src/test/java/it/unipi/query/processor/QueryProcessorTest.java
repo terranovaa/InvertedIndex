@@ -14,11 +14,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.SortedSet;
 
-public class QueryProcessorTests {
+public class QueryProcessorTest {
 
     QueryProcessor queryProcessor = new QueryProcessor();
 
-    public QueryProcessorTests() throws IOException, ConfigurationException {
+    public QueryProcessorTest() throws IOException, ConfigurationException {
     }
 
     @Test
@@ -86,6 +86,8 @@ public class QueryProcessorTests {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        int i = 0;
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter("./collection/queries.results.txt"))) {
             SortedSet<DocumentScore> results;
