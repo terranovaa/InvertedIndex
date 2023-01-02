@@ -48,5 +48,11 @@ The top k documents according to BM25 will be given in output.
 Stopwords removal and stemming are used by default.<br />
 This setting can be changed using the flags contained in the application.properties file.
 
+### Trec_eval test
+For the trec_eval test the following command can be launched:
+<pre>
+mvn clean test
+</pre> 
+Results will be written in the /collection/queries.results.txt file.
 
 
