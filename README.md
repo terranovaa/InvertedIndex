@@ -6,6 +6,9 @@ This solution allows to handle information retrieval in front of a massive scale
 from the design of the data structures needed, implementing a scalable indexing and going towards
 query processing.
 
+### Setup
+Before running, the collection.tar.gz should be downloaded and added in the collection folder, in order for the program to run.
+
 ### Snowball Stemmer Installation 
 The snowball stemmer should be installed manually due to the absence of support from Maven using the following command:
 <br />
