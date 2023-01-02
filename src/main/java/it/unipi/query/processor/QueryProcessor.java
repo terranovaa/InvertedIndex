@@ -140,10 +140,10 @@ public class QueryProcessor {
         // checking the query type
         if (tokens[0].equals("and")) {
             queryType = QueryType.CONJUNCTIVE;
-            System.out.println("You have requested a conjunctive query with the following preprocessed tokens:");
+            System.out.println("You have requested a conjunctive query with the following tokens:");
         } else if (tokens[0].equals("or")) {
             queryType = QueryType.DISJUNCTIVE;
-            System.out.println("You have requested a disjunctive query with the following preprocessed tokens:");
+            System.out.println("You have requested a disjunctive query with the following tokens:");
         } else {
             throw new IllegalQueryTypeException();
         }
@@ -160,7 +160,7 @@ public class QueryProcessor {
             System.out.println("Query too long, all the tokens after " + tokens[Constants.MAX_QUERY_LENGTH] + " are ignored");
             limit = Constants.MAX_QUERY_LENGTH + 1;
         }
-
+        System.out.println("List of preprocessed tokens:");
         tokenSet = new HashSet<>();
         for (int i = 1; i < limit; ++i){
             // skipping first token specifying the type of the query
@@ -172,6 +172,14 @@ public class QueryProcessor {
             }
             tokenSet.add(token);
         }
+
+        // printing the query tokens
+        String[] preprocessedTokens = tokenSet.toArray(new String[tokenSet.size()]);
+        for(int i = 0; i < preprocessedTokens.length; ++i)
+            if(i < preprocessedTokens.length-1)
+                System.out.print(preprocessedTokens[i] + ", ");
+            else
+                System.out.print(preprocessedTokens[i] + '\n');
 
         SortedSet<DocumentScore> documentScores;
         // checking if the query has already been processed
