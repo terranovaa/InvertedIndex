@@ -3,11 +3,10 @@
 ### The problem
 The scope of this project is the implementation of an index structure based on the document collection "Passage ranking dataset" available on this page: https://microsoft.github.io/msmarco/TREC-Deep-Learning-2020.
 This solution allows to handle information retrieval in front of a massive scale of documents, starting
-from the design of the data structures needed, implementing a scalable indexing and going towards
-query processing.
+from the design of the data structures needed, implementing scalable indexing, and going towards query processing.
 
 ### Setup
-Before running, the collection.tar.gz should be downloaded and added in the collection folder, in order for the program to run.
+Before running, the collection.tar.gz should be downloaded and added to the collection folder, in order for the program to run.
 
 ### Snowball Stemmer Installation 
 The snowball stemmer should be installed manually due to the absence of support from Maven using the following command:
@@ -21,7 +20,7 @@ The stemmer jar file is included in the resources folder.
 ### How to use our solution
 The project contains a ready-to-use jar file that can be used to test our solution.
 <br/>
-The first parameter can be used to choose if the indexing or the query processing component should be used.
+The first parameter can be used to choose if the indexing or the query processing component should be used. 
 
 
 ### Indexing component
